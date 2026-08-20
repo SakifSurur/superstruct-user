@@ -40,8 +40,6 @@ export const login = (input: { email: string; password: string }): Promise<Login
 export const me = (token: string): Promise<User> =>
   request('/v1/me', { headers: { authorization: `Bearer ${token}` } });
 
-export const stats = (): Promise<{ totalUsers: number }> => request('/v1/stats');
-
 export interface FindingsSummary {
   counts: { critical: number; high: number; medium: number; low: number };
   topFailedControls: { id: string; title: string; severity: string }[];

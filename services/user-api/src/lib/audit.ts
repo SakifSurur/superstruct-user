@@ -4,7 +4,7 @@ import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 const client = new EventBridgeClient({});
 
 const BUS_NAME = process.env.AUDIT_BUS_NAME;
-export const AUDIT_SOURCE = 'superstruct-user.api';
+const AUDIT_SOURCE = 'superstruct-user.api';
 
 export type AuditEventType = 'user.registered' | 'user.login.succeeded' | 'user.login.failed';
 

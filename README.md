@@ -61,21 +61,12 @@ and `30-edge` publishes `.../edge/api-url`; `30-edge` itself reads the
 user-api stack's `ApiDomain` output and the origin-verify secret's us-east-1
 replica.
 
-**Fresh-account bootstrap order**: `40-frontend-hosting` → `user-api` (osls)
-→ `30-edge` → `41-frontend-deploy`. Steady state has no ordering constraints
-(`run --all` resolves the dependency graph).
-
-`user-api` also deploys standalone on an empty account: every external lookup
-has a fallback — CORS falls back to a localhost origin, and secrets encryption
-falls back to the AWS-managed key until `20-kms`/`21-kms-replica` publish the
-CMK alias to SSM (`.../kms/secrets-key-alias`); redeploy the API after that to
-switch the secrets to the CMK.
-
 The SPA is published by `41-frontend-deploy` via Amplify's manual-deployment
-API (the repo has no git connection): a `terraform_data` resource hashes the
-frontend source and re-runs the vite build + upload only when it (or the API
-URL) changes. Force a re-publish with
-`terragrunt apply -replace=terraform_data.publish` in that unit.
+API: a `terraform_data` resource hashes the frontend source and re-runs the
+vite build + upload only when it (or the API URL) changes.
+
+Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
+**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
 
 ## PII safety measures
 
@@ -96,14 +87,17 @@ URL) changes. Force a re-publish with
 
 ## Deploy
 
+Steady state (everything already bootstrapped):
+
 ```sh
-npm install                                           # SPA build deps for 41-frontend-deploy
-(cd infrastructure/dev && terragrunt run --all apply) # 1. all infra units incl. SPA publish
-npm run deploy:api                                    # 2. API stack (osls)
+npm install
+(cd infrastructure/dev && terragrunt run --all apply)   # all infra units incl. SPA publish
+npm run deploy:api                                      # API stack (osls)
 ```
 
-Use the CloudFront URL from SSM (`/superstruct-user/dev/edge/api-url`) — the
-execute-api URL returns 403 by design.
+Fresh account: follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. The public
+API URL is the CloudFront one from SSM (`/superstruct-user/dev/edge/api-url`)
+— the execute-api URL returns 403 by design.
 
 ## Endpoints
 
