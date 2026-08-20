@@ -68,7 +68,8 @@ provider:
 custom:
   usersTableName: ${self:service}-${self:provider.stage}-users
   auditTableName: ${self:service}-${self:provider.stage}-audit
-  kmsAlias: alias/superstruct-user/${self:provider.stage}
+  # CMK alias from 21-kms-replica; the AWS-managed-key fallback keeps this stack independently deployable.
+  kmsAlias: ${ssm:/superstruct-user/${self:provider.stage}/kms/secrets-key-alias, 'alias/aws/secretsmanager'}
   esbuild:
     bundle: true
     minify: true

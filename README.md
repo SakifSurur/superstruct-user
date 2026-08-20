@@ -65,6 +65,12 @@ replica.
 → `30-edge` → `41-frontend-deploy`. Steady state has no ordering constraints
 (`run --all` resolves the dependency graph).
 
+`user-api` also deploys standalone on an empty account: every external lookup
+has a fallback — CORS falls back to a localhost origin, and secrets encryption
+falls back to the AWS-managed key until `20-kms`/`21-kms-replica` publish the
+CMK alias to SSM (`.../kms/secrets-key-alias`); redeploy the API after that to
+switch the secrets to the CMK.
+
 The SPA is published by `41-frontend-deploy` via Amplify's manual-deployment
 API (the repo has no git connection): a `terraform_data` resource hashes the
 frontend source and re-runs the vite build + upload only when it (or the API

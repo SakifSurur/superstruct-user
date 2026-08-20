@@ -1,4 +1,5 @@
-# us-east-1 replica of the application key (20-kms), same alias.
+# us-east-1 replica of the application key (20-kms), same alias. Publishes the
+# alias to SSM last, so the parameter's existence implies both keys exist.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")
@@ -6,6 +7,27 @@ include "root" {
 
 locals {
   env = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
+}
+
+# Aliased home-region provider for the SSM contract parameter.
+generate "provider_home" {
+  path      = "provider_home.tf"
+  if_exists = "overwrite"
+  contents  = <<EOF
+provider "aws" {
+  alias               = "home"
+  region              = "${local.env.aws_region}"
+  allowed_account_ids = ["${local.env.aws_account_id}"]
+
+  default_tags {
+    tags = {
+      Project     = "${local.env.project}"
+      Environment = "${local.env.environment}"
+      ManagedBy   = "terragrunt"
+    }
+  }
+}
+EOF
 }
 
 dependency "primary" {
@@ -17,17 +39,6 @@ dependency "primary" {
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }
 
-terraform {
-  source = "tfr:///terraform-aws-modules/kms/aws?version=4.2.1"
-}
-
 inputs = {
-  create_replica  = true
   primary_key_arn = dependency.primary.outputs.key_arn
-  description     = "${local.env.project} ${local.env.environment} application key (us-east-1 replica)"
-
-  enable_default_policy   = true
-  deletion_window_in_days = 7
-
-  aliases = ["${local.env.project}/${local.env.environment}"]
 }
