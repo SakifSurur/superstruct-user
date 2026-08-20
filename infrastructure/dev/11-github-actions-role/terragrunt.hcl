@@ -27,7 +27,9 @@ inputs = {
   use_name_prefix = false
 
   enable_github_oidc = true
-  oidc_subjects      = ["SakifSurur/superstruct-user:ref:refs/heads/main"]
+  # GitHub's immutable-reference sub format: account and repo IDs are pinned,
+  # so the trust survives (only) this exact account/repo, rename-proof.
+  oidc_subjects      = ["SakifSurur@83817182/superstruct-user@1340972459:ref:refs/heads/main"]
   oidc_audiences     = ["sts.amazonaws.com"]
 
   policies = {
