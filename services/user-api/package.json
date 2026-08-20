@@ -1,0 +1,38 @@
+{
+  "name": "@superstruct-user/user-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "User HTTP API — oss-serverless, API Gateway HTTP API, Lambda (nodejs24.x), DynamoDB",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "package": "osls package",
+    "deploy": "osls deploy",
+    "remove": "osls remove",
+    "info": "osls info",
+    "logs": "osls logs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.750.0",
+    "@aws-sdk/client-eventbridge": "^3.1114.0",
+    "@aws-sdk/client-securityhub": "^3.1114.0",
+    "@aws-sdk/lib-dynamodb": "^3.750.0",
+    "jose": "^6.2.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^24.0.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.8.1",
+    "osls": "^4.1.0",
+    "serverless-esbuild": "^1.57.2",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}

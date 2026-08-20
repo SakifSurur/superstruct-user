@@ -1,0 +1,24 @@
+# Node
+node_modules/
+*.log
+
+# oss-serverless / esbuild build output
+.serverless/
+.esbuild/
+dist/
+
+# Terraform / Terragrunt
+.terragrunt-cache/
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+infrastructure/**/backend.tf
+infrastructure/**/provider.tf
+
+# Local overrides
+.env
+.env.*
+
+# OS / editor
+.DS_Store

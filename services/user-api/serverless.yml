@@ -1,0 +1,347 @@
+service: superstruct-user-api
+frameworkVersion: '^4.0.0'
+
+plugins:
+  - serverless-esbuild
+
+provider:
+  name: aws
+  runtime: nodejs24.x
+  architecture: arm64
+  region: ${opt:region, 'eu-central-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  httpApi:
+    metrics: true
+    cors:
+      allowedOrigins:
+        # Amplify frontend (deploy that stack first; falls back to the vite
+        # preview origin so a fresh account can still deploy this stack alone).
+        - ${cf:superstruct-user-frontend-${self:provider.stage}.AppUrl, 'http://localhost:4173'}
+        - http://localhost:5173
+      allowedHeaders:
+        - content-type
+        - authorization
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      maxAge: 3600
+  environment:
+    USERS_TABLE_NAME: ${self:custom.usersTableName}
+    NODE_OPTIONS: --enable-source-maps
+    # Requests must carry this value in x-origin-verify — CloudFront attaches
+    # it at the origin, so direct execute-api calls are rejected with 403.
+    ORIGIN_VERIFY_SECRET: !Sub '{{resolve:secretsmanager:${OriginVerifySecret}:SecretString:headerValue}}'
+    JWT_SECRET: !Sub '{{resolve:secretsmanager:${JwtSecret}:SecretString:signingKey}}'
+    AUDIT_BUS_NAME: !Ref AuditBus
+    AUDIT_TABLE_NAME: ${self:custom.auditTableName}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt UsersTable.Arn
+            - !Sub '${UsersTable.Arn}/index/*'
+            - !GetAtt AuditTable.Arn
+        - Effect: Allow
+          Action:
+            - securityhub:GetFindings
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - events:PutEvents
+          Resource:
+            - !GetAtt AuditBus.Arn
+  tags:
+    Project: superstruct-user
+    Environment: ${self:provider.stage}
+    ManagedBy: oss-serverless
+
+custom:
+  usersTableName: ${self:service}-${self:provider.stage}-users
+  auditTableName: ${self:service}-${self:provider.stage}-audit
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: true
+    target: node24
+    platform: node
+    format: cjs
+    exclude:
+      - '@aws-sdk/*'
+
+package:
+  individually: true
+
+functions:
+  register:
+    handler: src/handlers/auth.register
+    events:
+      - httpApi:
+          method: POST
+          path: /v1/register
+  login:
+    handler: src/handlers/auth.login
+    events:
+      - httpApi:
+          method: POST
+          path: /v1/login
+  me:
+    handler: src/handlers/auth.me
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/me
+  stats:
+    handler: src/handlers/auth.stats
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/stats
+  securityFindings:
+    handler: src/handlers/security.findings
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/security/findings
+  myActivity:
+    handler: src/handlers/activity.list
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/me/activity
+  # Invoked by AuditToDynamoRule (defined in resources), not by HTTP.
+  auditWriter:
+    handler: src/handlers/audit-writer.handler
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      # Keep the data if the stack is ever removed.
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        TableName: ${self:custom.usersTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+          - AttributeName: email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: email-index
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        SSESpecification:
+          SSEEnabled: true
+        # Expires ephemeral marker items that set expiresAt.
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+
+    OriginVerifySecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: superstruct-user/${self:provider.stage}/origin-verify
+        Description: Shared header value proving a request came through CloudFront.
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: headerValue
+          ExcludePunctuation: true
+          PasswordLength: 48
+        # Replicated so the edge stack (us-east-1) can resolve it by name.
+        ReplicaRegions:
+          - Region: us-east-1
+
+    JwtSecret:
+      Type: AWS::SecretsManager::Secret
+      Properties:
+        Name: superstruct-user/${self:provider.stage}/jwt-secret
+        Description: HS256 signing key for the API's JWTs.
+        GenerateSecretString:
+          SecretStringTemplate: '{}'
+          GenerateStringKey: signingKey
+          ExcludePunctuation: true
+          PasswordLength: 64
+
+    # --- Audit trail: handlers -> EventBridge bus -> Firehose -> S3 ---
+
+    AuditBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: superstruct-user-audit-${self:provider.stage}
+
+    AuditBucket:
+      Type: AWS::S3::Bucket
+      # Audit trails outlive the stack.
+      DeletionPolicy: Retain
+      UpdateReplacePolicy: Retain
+      Properties:
+        BucketName: !Sub 'superstruct-user-audit-${self:provider.stage}-${AWS::AccountId}'
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: aws:kms
+                KMSMasterKeyID: alias/aws/s3
+              BucketKeyEnabled: true
+        LifecycleConfiguration:
+          Rules:
+            - Id: expire-audit-logs
+              Status: Enabled
+              ExpirationInDays: 365
+
+    AuditFirehoseRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: firehose.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: write-audit-bucket
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:AbortMultipartUpload
+                    - s3:GetBucketLocation
+                    - s3:GetObject
+                    - s3:ListBucket
+                    - s3:ListBucketMultipartUploads
+                    - s3:PutObject
+                  Resource:
+                    - !GetAtt AuditBucket.Arn
+                    - !Sub '${AuditBucket.Arn}/*'
+
+    AuditDeliveryStream:
+      Type: AWS::KinesisFirehose::DeliveryStream
+      Properties:
+        DeliveryStreamName: superstruct-user-audit-${self:provider.stage}
+        DeliveryStreamType: DirectPut
+        ExtendedS3DestinationConfiguration:
+          BucketARN: !GetAtt AuditBucket.Arn
+          RoleARN: !GetAtt AuditFirehoseRole.Arn
+          Prefix: 'audit/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/'
+          ErrorOutputPrefix: 'errors/!{firehose:error-output-type}/'
+          BufferingHints:
+            IntervalInSeconds: 60
+            SizeInMBs: 1
+          CompressionFormat: GZIP
+
+    AuditEventsToFirehoseRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: put-to-firehose
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - firehose:PutRecord
+                    - firehose:PutRecordBatch
+                  Resource:
+                    - !GetAtt AuditDeliveryStream.Arn
+
+    # Queryable per-user view of the audit trail (S3 stays the full archive).
+    AuditTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.auditTableName}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: sk
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: sk
+            KeyType: RANGE
+        TimeToLiveSpecification:
+          AttributeName: expiresAt
+          Enabled: true
+        SSESpecification:
+          SSEEnabled: true
+
+    AuditToDynamoRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: superstruct-user-audit-to-dynamo-${self:provider.stage}
+        EventBusName: !Ref AuditBus
+        EventPattern:
+          source:
+            - superstruct-user.api
+        Targets:
+          - Id: audit-writer
+            Arn: !GetAtt AuditWriterLambdaFunction.Arn
+
+    AuditWriterInvokePermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref AuditWriterLambdaFunction
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt AuditToDynamoRule.Arn
+
+    AuditToS3Rule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: superstruct-user-audit-to-s3-${self:provider.stage}
+        EventBusName: !Ref AuditBus
+        EventPattern:
+          source:
+            - superstruct-user.api
+        Targets:
+          - Id: audit-firehose
+            Arn: !GetAtt AuditDeliveryStream.Arn
+            RoleArn: !GetAtt AuditEventsToFirehoseRole.Arn
+
+  Outputs:
+    AuditBucketName:
+      Value: !Ref AuditBucket
+    AuditBusName:
+      Value: !Ref AuditBus
+    UsersTableName:
+      Value: !Ref UsersTable
+    UsersTableArn:
+      Value: !GetAtt UsersTable.Arn
+    ApiDomain:
+      Description: Bare execute-api domain, consumed by the edge stack as CloudFront origin.
+      Value: !Sub '${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'

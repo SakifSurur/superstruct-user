@@ -1,0 +1,135 @@
+service: superstruct-user-edge
+frameworkVersion: '^4.0.0'
+
+# Resources-only stack. Deployed to us-east-1 because WAFv2 web ACLs with
+# CLOUDFRONT scope can only exist there. Deploy the user-api stack first —
+# this stack reads its outputs and the replicated origin-verify secret.
+
+provider:
+  name: aws
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  tags:
+    Project: superstruct-user
+    Environment: ${self:provider.stage}
+    ManagedBy: oss-serverless
+
+custom:
+  apiDomain: ${cf(eu-central-1):superstruct-user-api-${self:provider.stage}.ApiDomain}
+  originVerifySecretName: superstruct-user/${self:provider.stage}/origin-verify
+
+resources:
+  Resources:
+    ApiWebAcl:
+      Type: AWS::WAFv2::WebACL
+      Properties:
+        Name: superstruct-user-${self:provider.stage}-api
+        Scope: CLOUDFRONT
+        DefaultAction:
+          Allow: {}
+        VisibilityConfig:
+          SampledRequestsEnabled: true
+          CloudWatchMetricsEnabled: true
+          MetricName: superstruct-user-${self:provider.stage}-api
+        Rules:
+          - Name: aws-ip-reputation
+            Priority: 0
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesAmazonIpReputationList
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: aws-ip-reputation
+          - Name: aws-common
+            Priority: 1
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesCommonRuleSet
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: aws-common
+          - Name: aws-known-bad-inputs
+            Priority: 2
+            OverrideAction:
+              None: {}
+            Statement:
+              ManagedRuleGroupStatement:
+                VendorName: AWS
+                Name: AWSManagedRulesKnownBadInputsRuleSet
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: aws-known-bad-inputs
+          - Name: rate-limit-per-ip
+            Priority: 3
+            Action:
+              Block: {}
+            Statement:
+              RateBasedStatement:
+                AggregateKeyType: IP
+                Limit: 300 # requests per 5 minutes per IP
+            VisibilityConfig:
+              SampledRequestsEnabled: true
+              CloudWatchMetricsEnabled: true
+              MetricName: rate-limit-per-ip
+
+    ApiDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: superstruct-user ${self:provider.stage} API edge
+          HttpVersion: http2and3
+          PriceClass: PriceClass_100
+          WebACLId: !GetAtt ApiWebAcl.Arn
+          Origins:
+            - Id: http-api
+              DomainName: ${self:custom.apiDomain}
+              CustomOriginConfig:
+                OriginProtocolPolicy: https-only
+                OriginSSLProtocols:
+                  - TLSv1.2
+              OriginCustomHeaders:
+                - HeaderName: x-origin-verify
+                  # Resolved by CloudFormation from the us-east-1 replica of the
+                  # secret owned by the user-api stack — the value never lands
+                  # in the template.
+                  HeaderValue: '{{resolve:secretsmanager:${self:custom.originVerifySecretName}:SecretString:headerValue}}'
+          DefaultCacheBehavior:
+            TargetOriginId: http-api
+            ViewerProtocolPolicy: redirect-to-https
+            Compress: true
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
+            # Managed policies: never cache API responses (PII must not sit in
+            # edge caches), forward everything except Host, add security headers
+            # (HSTS, nosniff, frame-deny, ...).
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
+            ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03 # SecurityHeadersPolicy
+
+  Outputs:
+    ApiUrl:
+      Description: Public entry point for the user API.
+      Value: !Sub 'https://${ApiDistribution.DomainName}'
+    DistributionId:
+      Value: !Ref ApiDistribution
+    WebAclArn:
+      Value: !GetAtt ApiWebAcl.Arn

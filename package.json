@@ -1,0 +1,17 @@
+{
+  "name": "superstruct-user",
+  "private": true,
+  "description": "Monorepo: oss-serverless HTTP API on AWS Lambda + Terragrunt-managed infrastructure",
+  "workspaces": [
+    "services/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "package:api": "npm run package -w services/user-api",
+    "deploy:api": "npm run deploy -w services/user-api",
+    "deploy:edge": "npm run deploy -w services/edge",
+    "deploy:frontend": "npm run deploy -w services/frontend"
+  }
+}

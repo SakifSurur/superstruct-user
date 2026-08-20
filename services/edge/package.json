@@ -1,0 +1,14 @@
+{
+  "name": "@superstruct-user/edge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CloudFront + WAF in front of the user API. Resources-only stack; us-east-1 because CloudFront-scoped WAF web ACLs must live there.",
+  "scripts": {
+    "deploy": "osls deploy",
+    "remove": "osls remove",
+    "info": "osls info"
+  },
+  "devDependencies": {
+    "osls": "^4.1.0"
+  }
+}

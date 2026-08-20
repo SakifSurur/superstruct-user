@@ -1,0 +1,64 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write # OIDC token for assuming the AWS deploy role
+  contents: read
+
+# Deploys must not interleave — CloudFormation updates are stateful.
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: eu-central-1
+  DEPLOY_ROLE_ARN: arn:aws:iam::076899628449:role/superstruct-user-github-actions-deploy
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+
+      - name: Assume deploy role via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Order matters: frontend hosting stack first (user-api CORS reads its
+      # AppUrl), then the API, then edge (reads api outputs + secret replica),
+      # then the SPA build+upload.
+      - name: Deploy frontend hosting stack
+        run: npm run deploy:frontend
+
+      - name: Deploy API
+        run: npm run deploy:api
+
+      - name: Deploy edge (CloudFront + WAF)
+        run: npm run deploy:edge
+
+      - name: Build and publish SPA to Amplify
+        run: ./services/frontend/deploy.sh dev
