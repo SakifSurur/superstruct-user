@@ -1,6 +1,6 @@
 // The server URL is injected at build time so Swagger's "Try it out" hits the real API.
 
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
+const BASE_URL: string = import.meta.env.PUBLIC_API_URL ?? '';
 
 export const openapiSpec = {
   openapi: '3.0.3',

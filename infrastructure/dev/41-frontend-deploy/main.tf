@@ -3,9 +3,8 @@ locals {
   source_hash = sha1(join("", concat(
     [for f in sort(fileset("${var.frontend_dir}/src", "**")) : filesha1("${var.frontend_dir}/src/${f}")],
     [
-      filesha1("${var.frontend_dir}/index.html"),
       filesha1("${var.frontend_dir}/package.json"),
-      filesha1("${var.frontend_dir}/vite.config.ts"),
+      filesha1("${var.frontend_dir}/astro.config.mjs"),
       filesha1("${var.frontend_dir}/tsconfig.json"),
     ],
   )))
@@ -23,19 +22,27 @@ resource "terraform_data" "publish" {
     interpreter = ["bash", "-c"]
 
     environment = {
-      VITE_API_URL = var.api_url
-      APP_ID       = var.app_id
-      REGION       = var.aws_region
+      PUBLIC_API_URL = var.api_url
+      APP_ID         = var.app_id
+      REGION         = var.aws_region
     }
 
     command = <<-EOT
       set -euo pipefail
 
-      echo "==> Building SPA against $${VITE_API_URL}"
+      echo "==> Building Astro SSR bundle against $${PUBLIC_API_URL}"
       npm run build
 
-      echo "==> Uploading build to Amplify app $${APP_ID} (branch main)"
-      (cd dist && zip -qr ../dist.zip .)
+      # The compute bundle needs astro's runtime externals + react; stage a
+      # production install using the versions resolved in this workspace.
+      ASTRO_V=$(node -p "require('astro/package.json').version")
+      REACT_V=$(node -p "require('react/package.json').version")
+      (cd .amplify-hosting/compute/default && \
+        npm install --no-save --omit=dev --no-audit --no-fund \
+          "astro@$${ASTRO_V}" "react@$${REACT_V}" "react-dom@$${REACT_V}" >/dev/null)
+
+      echo "==> Uploading bundle to Amplify app $${APP_ID} (branch main)"
+      (cd .amplify-hosting && zip -qr ../dist.zip .)
       trap 'rm -f dist.zip' EXIT
 
       DEPLOYMENT=$(aws amplify create-deployment --app-id "$${APP_ID}" --branch-name main --region "$${REGION}")

@@ -13,7 +13,7 @@ export interface LoginResult {
   user: User;
 }
 
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
+const BASE_URL: string = import.meta.env.PUBLIC_API_URL ?? '';
 
 const request = async <T>(path: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(`${BASE_URL}${path}`, {

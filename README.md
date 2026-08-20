@@ -5,7 +5,7 @@ TypeScript, esbuild, Lambda `nodejs24.x` (arm64) behind API Gateway (HTTP API),
 DynamoDB as the database, fronted by CloudFront + WAF.
 
 ```
-browser ──> Amplify Hosting (React SPA)
+browser ──> Amplify Hosting (Astro SSR, WEB_COMPUTE)
              │  fetch() with CORS locked to the Amplify origin
              ▼
            CloudFront (TLS, security headers, no caching)
@@ -26,7 +26,7 @@ resources-only is Terraform + Terragrunt:
 | Half | What | Where |
 | --- | --- | --- |
 | `services/user-api` (osls) | Functions, routes, IAM, DynamoDB tables, secrets, audit pipeline | eu-central-1 |
-| `services/frontend` | React/Vite SPA + `deploy.sh` publish script (no stack) | — |
+| `services/frontend` | Astro SSR app (React auth island) — published by `41-frontend-deploy` | — |
 | `infrastructure/` (Terragrunt) | Everything below | — |
 
 ```
@@ -41,7 +41,7 @@ infrastructure/
     21-kms-replica/         # us-east-1 replica key
     30-edge/                # CloudFront + WAFv2 in front of the API (us-east-1¹)
     40-frontend-hosting/    # Amplify Hosting app + branch
-    41-frontend-deploy/     # SPA build + Amplify manual deployment (publishes
+    41-frontend-deploy/     # Astro build + Amplify manual deployment (publishes
                             # when the frontend source or API URL changes)
 ```
 
@@ -61,9 +61,11 @@ and `30-edge` publishes `.../edge/api-url`; `30-edge` itself reads the
 user-api stack's `ApiDomain` output and the origin-verify secret's us-east-1
 replica.
 
-The SPA is published by `41-frontend-deploy` via Amplify's manual-deployment
-API: a `terraform_data` resource hashes the frontend source and re-runs the
-vite build + upload only when it (or the API URL) changes.
+The frontend is Astro with server-side rendering (Amplify `WEB_COMPUTE`);
+the auth panel is a client-only React island since the JWT lives in the
+browser. `41-frontend-deploy` publishes it via Amplify's manual-deployment
+API: a `terraform_data` resource hashes the source and re-runs the Astro
+build + upload only when it (or the API URL) changes.
 
 Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
 **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
@@ -91,7 +93,7 @@ Steady state (everything already bootstrapped):
 
 ```sh
 npm install
-(cd infrastructure/dev && terragrunt run --all apply)   # all infra units incl. SPA publish
+(cd infrastructure/dev && terragrunt run --all apply)   # all infra units incl. frontend publish
 npm run deploy:api                                      # API stack (osls)
 ```
 
@@ -148,7 +150,7 @@ objects after 365 days.
 
 Pushes to `main` deploy automatically via GitHub Actions
 (`.github/workflows/deploy.yml`): checks (lint, typecheck, tests) gate a
-sequential deploy of all three stacks plus the SPA upload. Auth is GitHub OIDC
+sequential deploy of the infrastructure and the API. Auth is GitHub OIDC
 — the workflow assumes `superstruct-user-github-actions-deploy`
 (provisioned in `infrastructure/dev/10-github-oidc-provider` and
 `11-github-actions-role`), whose trust policy only accepts

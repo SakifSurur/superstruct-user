@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "React SPA for the user API. Hosting and publishing are Terragrunt-managed (infrastructure/dev/40-frontend-hosting and 41-frontend-deploy).",
+  "description": "Astro SSR frontend for the user API. Hosting and publishing are Terragrunt-managed (infrastructure/dev/40-frontend-hosting and 41-frontend-deploy).",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -16,10 +16,12 @@
     "swagger-ui-dist": "^5.32.14"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@astrojs/react": "^6.0.4",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.0.5",
-    "typescript": "^5.7.0",
-    "vite": "^8.2.1"
+    "astro": "^7.2.4",
+    "astro-aws-amplify": "^0.6.0",
+    "typescript": "^5.7.0"
   }
 }

@@ -2,17 +2,17 @@
 
 End-to-end runbook: from an empty AWS account to a fully working stack, plus
 day-2 operations and teardown. Architecture background is in the
-[README](../README.md).
+[README](./README.md).
 
 ## What gets deployed
 
-| Piece | Tool | Region |
-| --- | --- | --- |
-| Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
-| Security Hub CSPM, GitHub OIDC, KMS CMK (+ us-east-1 replica) | Terragrunt (`infrastructure/dev/00–21`) | eu-central-1 / us-east-1 |
-| API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
-| CloudFront + WAF edge | Terragrunt (`30-edge`) | us-east-1 |
-| Amplify hosting (WEB_COMPUTE) + Astro SSR publish | Terragrunt (`40-frontend-hosting`, `41-frontend-deploy`) | eu-central-1 |
+| Piece                                                         | Tool                                                     | Region                   |
+| ------------------------------------------------------------- | -------------------------------------------------------- | ------------------------ |
+| Terraform state bucket                                        | Terragrunt (auto-bootstrap)                              | eu-central-1             |
+| Security Hub CSPM, GitHub OIDC, KMS CMK (+ us-east-1 replica) | Terragrunt (`infrastructure/dev/00–21`)                  | eu-central-1 / us-east-1 |
+| API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline      | oss-serverless (`services/user-api`)                     | eu-central-1             |
+| CloudFront + WAF edge                                         | Terragrunt (`30-edge`)                                   | us-east-1                |
+| Amplify hosting + SPA publish                                 | Terragrunt (`40-frontend-hosting`, `41-frontend-deploy`) | eu-central-1             |
 
 ## Prerequisites
 
@@ -50,7 +50,7 @@ done
 #    step 1 it picks up the real Amplify origin and the CMK from SSM.
 cd ../.. && npm run deploy:api
 
-# 3. Edge + frontend publish (all other units no-op).
+# 3. Edge + SPA publish (all other units no-op).
 cd infrastructure/dev && terragrunt run --all apply
 ```
 
@@ -58,7 +58,7 @@ Notes:
 
 - `--backend-bootstrap` is only needed once, to create the state bucket.
 - Step 3's CloudFront distribution takes 5–10 minutes to create.
-- If you ran `deploy:api` *before* the KMS units ever existed, run it again
+- If you ran `deploy:api` _before_ the KMS units ever existed, run it again
   after step 1 so the secrets switch from the AWS-managed key to the CMK.
 
 ## Verify
@@ -88,17 +88,16 @@ One-time setup for a new repo or account:
 
 1. Update `oidc_subjects` in `infrastructure/dev/11-github-actions-role/terragrunt.hcl`.
    GitHub mints **immutable-reference** subjects — `repo:OWNER@ownerId/REPO@repoId:ref:...`,
-   *not* the classic `repo:owner/repo:ref:...`. Get the IDs from
+   _not_ the classic `repo:owner/repo:ref:...`. Get the IDs from
    `gh api /users/<owner> --jq .id` and `gh api /repos/<owner>/<repo> --jq .id`.
 2. Apply `10-github-oidc-provider` and `11-github-actions-role`.
 3. Set `DEPLOY_ROLE_ARN` and `AWS_REGION` in the workflow's `env` block.
 4. Pushing workflow files requires the `workflow` scope on your gh token:
    `gh auth refresh -s workflow`.
 
-The frontend republish (`41-frontend-deploy`) is hash-driven: CI runs it on
-every push but it only rebuilds/uploads when `services/frontend` source or the
-API URL changed. The bundle follows Amplify's deploy spec (`deploy-manifest.json`
-+ `static/` + `compute/default/`, with a production node_modules staged in).
+The SPA republish (`41-frontend-deploy`) is hash-driven: CI runs it on every
+push but it only rebuilds/uploads when `services/frontend` source or the API
+URL changed.
 
 ## Day-2 operations
 
@@ -107,7 +106,7 @@ npm test / npm run lint / npm run typecheck    # local checks (CI runs the same)
 npm run deploy:api                             # API only
 terragrunt apply                               # single unit, run inside its directory
 terragrunt run --all apply                     # whole infra tree (from infrastructure/dev)
-terragrunt apply -replace=terraform_data.publish   # force frontend republish (in 41-frontend-deploy)
+terragrunt apply -replace=terraform_data.publish   # force SPA republish (in 41-frontend-deploy)
 terragrunt hcl format && terraform fmt -recursive  # formatting (from infrastructure/)
 npx osls logs -f login                         # tail a Lambda (in services/user-api)
 ```
@@ -115,13 +114,13 @@ npx osls logs -f login                         # tail a Lambda (in services/user
 ## Teardown
 
 Order matters — **destroy the API stack before the KMS units**. CloudFormation
-re-resolves the `{{resolve:secretsmanager}}` references on *every* operation,
+re-resolves the `{{resolve:secretsmanager}}` references on _every_ operation,
 including delete; with the CMK already pending deletion the stack delete fails
 (recovery: `aws kms cancel-key-deletion` + `enable-key` in both regions, retry,
 re-schedule).
 
 ```sh
-# 1. Edge + frontend publish state first (30-edge reads the API stack, so it must
+# 1. Edge + SPA publish state first (30-edge reads the API stack, so it must
 #    go while the stack still exists).
 cd infrastructure/dev
 (cd 41-frontend-deploy && terragrunt destroy)

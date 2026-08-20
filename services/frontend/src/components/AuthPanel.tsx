@@ -8,7 +8,7 @@ import {
   type ActivityItem,
   type FindingsSummary,
   type User,
-} from './api';
+} from '../api';
 import ApiDocs from './ApiDocs';
 
 const SwaggerDocs = lazy(() => import('./SwaggerDocs'));
@@ -21,7 +21,7 @@ const ACTIVITY_LABELS: Record<ActivityItem['type'], string> = {
 
 const TOKEN_KEY = 'superstruct-user.token';
 
-export default function App() {
+export default function AuthPanel() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [profile, setProfile] = useState<User | null>(null);
   const [posture, setPosture] = useState<FindingsSummary | null>(null);
@@ -84,10 +84,7 @@ export default function App() {
   };
 
   return (
-    <main className="container">
-      <h1>superstruct-user</h1>
-      <p className="subtitle">JWT auth demo</p>
-
+    <>
       {profile ? (
         <section className="card">
           <h2>
@@ -220,6 +217,6 @@ export default function App() {
           </details>
         </>
       )}
-    </main>
+    </>
   );
 }

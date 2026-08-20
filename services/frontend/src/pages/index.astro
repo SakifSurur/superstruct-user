@@ -1,0 +1,13 @@
+---
+import Layout from '../layouts/Layout.astro';
+import AuthPanel from '../components/AuthPanel';
+---
+
+<Layout title="superstruct-user">
+  <main class="container">
+    <h1>superstruct-user</h1>
+    <p class="subtitle">JWT auth demo</p>
+    {/* client:only — the panel depends on localStorage and gates the API docs behind login */}
+    <AuthPanel client:only="react" />
+  </main>
+</Layout>

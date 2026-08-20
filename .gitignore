@@ -22,3 +22,5 @@ infrastructure/**/provider.tf
 
 # OS / editor
 .DS_Store
+.amplify-hosting/
+.astro/

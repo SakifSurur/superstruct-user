@@ -1,13 +1,8 @@
+# WEB_COMPUTE: SSR bundles per the Amplify deploy spec; routing comes from the
+# bundle's deploy-manifest.json.
 resource "aws_amplify_app" "frontend" {
   name     = "${var.project}-${var.environment}"
-  platform = "WEB"
-
-  # SPA fallback: non-asset paths serve index.html.
-  custom_rule {
-    source = "</^[^.]+$|\\.(?!(css|js|map|json|png|svg|jpg|ico|txt|woff2?)$)([^.]+$)/>"
-    status = "200"
-    target = "/index.html"
-  }
+  platform = "WEB_COMPUTE"
 }
 
 resource "aws_amplify_branch" "main" {

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import SwaggerUIBundle from 'swagger-ui-dist/swagger-ui-es-bundle.js';
 import 'swagger-ui-dist/swagger-ui.css';
-import { openapiSpec } from './openapi';
+import { openapiSpec } from '../openapi';
 
 // Lazy-loaded from App — Swagger UI is ~1.3MB.
 export default function SwaggerDocs() {
