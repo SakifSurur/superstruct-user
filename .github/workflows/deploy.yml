@@ -62,11 +62,13 @@ jobs:
       # Amplify hosting, CloudFront + WAF edge. Steady-state ordering is safe;
       # a fresh account needs 40-frontend-hosting and the API stack before
       # 30-edge (see README).
+      # The state bucket already exists; a fresh account bootstraps it once
+      # with: terragrunt run --all --backend-bootstrap apply
       - name: Apply infrastructure (Terragrunt)
         working-directory: infrastructure/dev
         env:
           TG_NON_INTERACTIVE: 'true'
-        run: terragrunt run-all apply --backend-bootstrap
+        run: terragrunt run --all apply
 
       - name: Deploy API
         run: npm run deploy:api
