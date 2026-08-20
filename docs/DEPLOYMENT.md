@@ -12,7 +12,7 @@ day-2 operations and teardown. Architecture background is in the
 | Security Hub CSPM, GitHub OIDC, KMS CMK (+ us-east-1 replica) | Terragrunt (`infrastructure/dev/00–21`) | eu-central-1 / us-east-1 |
 | API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-edge`) | us-east-1 |
-| Amplify hosting (WEB_COMPUTE) + Astro SSR publish | Terragrunt (`40-frontend-hosting`, `41-frontend-deploy`) | eu-central-1 |
+| Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-frontend-hosting`) | eu-central-1 |
 
 ## Prerequisites
 
@@ -22,9 +22,13 @@ day-2 operations and teardown. Architecture background is in the
   profile. All commands below assume `AWS_PROFILE` is exported.
 - **Config**: set the account ID and region in `infrastructure/dev/env.hcl` —
   the single source of truth every unit reads.
+- **GitHub token for Amplify**: a classic PAT with `repo` and `admin:repo_hook`
+  scopes, stored once as a SecureString (it also lands in the hosting unit's
+  Terraform state):
+  `aws ssm put-parameter --name /superstruct-user/dev/github-token --type SecureString --value <PAT>`
 
 ```sh
-npm install          # workspaces; also the SPA build deps used by 41-frontend-deploy
+npm install          # workspaces
 export AWS_PROFILE=<your-profile>
 ```
 
@@ -37,26 +41,33 @@ CORS reads the Amplify URL from SSM.
 ```sh
 cd infrastructure/dev
 
-# 1. State bucket + every unit that does not need the API stack yet
-#    (30-edge and 41-frontend-deploy come later).
+# 1. State bucket + every unit that does not need the API stack yet.
 for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role \
-            20-kms 21-kms-replica 40-frontend-hosting; do
+            20-kms 21-kms-replica; do
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
-# 2. The API stack. It would deploy standalone too (CORS falls back to a
-#    localhost origin, secrets encryption to the AWS-managed key) — after
-#    step 1 it picks up the real Amplify origin and the CMK from SSM.
+# 2. The API stack. Deploys standalone (CORS falls back to a localhost
+#    origin until the Amplify unit exists).
 cd ../.. && npm run deploy:api
 
-# 3. Edge + frontend publish (all other units no-op).
+# 3. Edge, then Amplify hosting (depends on the edge API URL; needs the
+#    github-token SSM parameter from the prerequisites).
 cd infrastructure/dev && terragrunt run --all apply
+
+# 4. Redeploy the API so CORS picks up the real Amplify origin, then trigger
+#    the first frontend build.
+cd ../.. && npm run deploy:api
+APP_ID=$(aws ssm get-parameter --name /superstruct-user/dev/frontend/app-id \
+  --region eu-central-1 --query Parameter.Value --output text)
+aws amplify start-job --app-id "$APP_ID" --branch-name main --job-type RELEASE --region eu-central-1
 ```
 
 Notes:
 
 - `--backend-bootstrap` is only needed once, to create the state bucket.
-- Step 3's CloudFront distribution takes 5–10 minutes to create.
+- Step 3's CloudFront distribution takes 5–10 minutes to create; the first
+  Amplify build takes a few minutes more.
 - If you ran `deploy:api` *before* the KMS units ever existed, run it again
   after step 1 so the secrets switch from the AWS-managed key to the CMK.
 
@@ -92,10 +103,8 @@ One-time setup for a new repo or account:
 4. Pushing workflow files requires the `workflow` scope on your gh token:
    `gh auth refresh -s workflow`.
 
-The frontend republish (`41-frontend-deploy`) is hash-driven: CI runs it on
-every push but it only rebuilds/uploads when `services/frontend` source or the
-API URL changed. The bundle follows Amplify's deploy spec (`deploy-manifest.json`
-+ `static/` + `compute/default/`, with a production node_modules staged in).
+The frontend is built by Amplify itself on every push to `main` (git-connected
+app, auto-build enabled) — independent of the Actions workflow.
 
 ## Day-2 operations
 
@@ -104,7 +113,6 @@ npm test / npm run lint / npm run typecheck    # local checks (CI runs the same)
 npm run deploy:api                             # API only
 terragrunt apply                               # single unit, run inside its directory
 terragrunt run --all apply                     # whole infra tree (from infrastructure/dev)
-terragrunt apply -replace=terraform_data.publish   # force frontend republish (in 41-frontend-deploy)
 terragrunt hcl format && terraform fmt -recursive  # formatting (from infrastructure/)
 npx osls logs -f login                         # tail a Lambda (in services/user-api)
 ```
@@ -118,10 +126,10 @@ including delete; with the CMK already pending deletion the stack delete fails
 re-schedule).
 
 ```sh
-# 1. Edge + frontend publish state first (30-edge reads the API stack, so it must
-#    go while the stack still exists).
+# 1. Hosting and edge first (30-edge reads the API stack, so it must go while
+#    the stack still exists; 40 depends on 30).
 cd infrastructure/dev
-(cd 41-frontend-deploy && terragrunt destroy)
+(cd 40-frontend-hosting && terragrunt destroy)
 (cd 30-edge && terragrunt destroy)
 
 # 2. The API stack (empties its deployment bucket, deletes the secrets).
