@@ -1,24 +1,23 @@
 #!/usr/bin/env bash
-# Deploys the frontend: hosting stack -> SPA build -> Amplify manual deployment.
+# Builds the SPA and publishes it to Amplify Hosting via a manual deployment.
+# The Amplify app and the API edge are Terragrunt-managed
+# (infrastructure/dev/40-frontend-hosting and 30-edge); this script reads
+# their SSM contract parameters.
 # Usage: ./deploy.sh [stage]   (default: dev)
 set -euo pipefail
 cd "$(dirname "$0")"
 
 STAGE="${1:-dev}"
 REGION="eu-central-1"
-EDGE_REGION="us-east-1"
 
-echo "==> Deploying hosting stack (superstruct-user-frontend-${STAGE})"
-npx osls deploy --stage "$STAGE"
-
-stack_output() {
-  aws cloudformation describe-stacks --stack-name "$1" --region "$2" \
-    --query "Stacks[0].Outputs[?OutputKey=='$3'].OutputValue" --output text
+ssm_param() {
+  aws ssm get-parameter --name "/superstruct-user/${STAGE}/$1" --region "$REGION" \
+    --query 'Parameter.Value' --output text
 }
 
-APP_ID=$(stack_output "superstruct-user-frontend-${STAGE}" "$REGION" AppId)
-APP_URL=$(stack_output "superstruct-user-frontend-${STAGE}" "$REGION" AppUrl)
-API_URL=$(stack_output "superstruct-user-edge-${STAGE}" "$EDGE_REGION" ApiUrl)
+APP_ID=$(ssm_param frontend/app-id)
+APP_URL=$(ssm_param frontend/app-url)
+API_URL=$(ssm_param edge/api-url)
 
 echo "==> Building SPA against ${API_URL}"
 VITE_API_URL="$API_URL" npm run build

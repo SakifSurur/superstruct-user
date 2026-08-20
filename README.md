@@ -20,40 +20,49 @@ browser ──> Amplify Hosting (React SPA)
 
 ## Stacks
 
-| Workspace | Stack | Region | Contents |
-| --- | --- | --- | --- |
-| `services/user-api` | `superstruct-user-api-<stage>` | eu-central-1 | Functions, routes, IAM, DynamoDB table, origin-verify secret |
-| `services/edge` | `superstruct-user-edge-<stage>` | us-east-1¹ | CloudFront distribution, WAFv2 web ACL |
-| `services/frontend` | `superstruct-user-frontend-<stage>` | eu-central-1 | Amplify Hosting app + branch (React/Vite SPA) |
+Only the code that runs (Lambda) is an oss-serverless stack; everything
+resources-only is Terraform + Terragrunt:
 
-¹ CloudFront-scoped WAF web ACLs can only live in us-east-1.
-
-Account-level security tooling lives in `infrastructure/` (Terraform +
-Terragrunt), not in the serverless stacks:
+| Half | What | Where |
+| --- | --- | --- |
+| `services/user-api` (osls) | Functions, routes, IAM, DynamoDB tables, secrets, audit pipeline | eu-central-1 |
+| `services/frontend` | React/Vite SPA + `deploy.sh` publish script (no stack) | — |
+| `infrastructure/` (Terragrunt) | Everything below | — |
 
 ```
 infrastructure/
   root.hcl                  # S3 remote state (auto-bootstrapped) + generated provider
   dev/
     env.hcl                 # region, account ID — single source of truth
-    00-security-hub/        # self-managed Security Hub CSPM, FSBP standard
-                            # (tfr module cloudposse/security-hub/aws, pinned 0.13.0)
+    00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
+    10-github-oidc-provider/# GitHub Actions OIDC provider
+    11-github-actions-role/ # CI deploy role (trust: this repo's main only)
+    20-kms/                 # app CMK (multi-Region primary, secrets encryption)
+    21-kms-replica/         # us-east-1 replica key
+    30-edge/                # CloudFront + WAFv2 in front of the API (us-east-1¹)
+    40-frontend-hosting/    # Amplify Hosting app + branch
 ```
 
-Run with `terragrunt plan` / `terragrunt apply` inside the unit directory
-(`--backend-bootstrap` on first ever run). This account is deliberately
-disassociated from the org's delegated Security Hub admin; GuardDuty remains
-org-managed.
+¹ CloudFront-scoped WAF web ACLs can only live in us-east-1; a unit pins its
+provider region with a `region.hcl` next to its `terragrunt.hcl`.
 
-**Deploy order matters**: `user-api` first — `edge` reads its stack outputs
-(`ApiDomain`) and the us-east-1 replica of the origin-verify secret. The
-frontend hosting stack must exist before `user-api` so CORS can resolve the
-Amplify origin from its `AppUrl` output.
+Run with `terragrunt plan` / `terragrunt apply` inside a unit directory, or
+`terragrunt run-all apply` from `infrastructure/dev` (`--backend-bootstrap`
+on first ever run).
 
-The repo has no git remote, so the SPA is pushed with Amplify's
-manual-deployment API instead of a connected branch — `services/frontend/deploy.sh`
-deploys the hosting stack, builds against the edge stack's `ApiUrl`
-(`VITE_API_URL`), uploads `dist/`, and waits for the job to finish.
+**Cross-tool contract is SSM Parameter Store**: `40-frontend-hosting`
+publishes `/superstruct-user/<stage>/frontend/app-id|app-url` (consumed by
+`deploy.sh` and the API's CORS config); `30-edge` publishes
+`.../edge/api-url` (consumed by `deploy.sh` as `VITE_API_URL`); `30-edge`
+itself reads the user-api stack's `ApiDomain` output and the origin-verify
+secret's us-east-1 replica.
+
+**Fresh-account bootstrap order**: `40-frontend-hosting` → `user-api` (osls)
+→ `30-edge` → `deploy.sh`. Steady state has no ordering constraints.
+
+The repo's SPA is pushed with Amplify's manual-deployment API —
+`services/frontend/deploy.sh` builds against the SSM-published API URL,
+uploads `dist/`, and waits for the job to finish.
 
 ## PII safety measures
 
@@ -76,14 +85,13 @@ deploys the hosting stack, builds against the edge stack's `ApiUrl`
 
 ```sh
 npm install
-npm run deploy:frontend           # 1. Amplify hosting stack only (eu-central-1)
-npm run deploy:api                # 2. API + table + secret (eu-central-1)
-npm run deploy:edge               # 3. CloudFront + WAF (us-east-1)
-services/frontend/deploy.sh dev   # 4. build SPA + push to Amplify
+(cd infrastructure/dev && terragrunt run-all apply)   # 1. all infra units
+npm run deploy:api                                    # 2. API stack (osls)
+npm run deploy:frontend                               # 3. build SPA + push to Amplify
 ```
 
-Use the CloudFront URL from the edge stack's `ApiUrl` output
-(`npx osls info` in `services/edge`) — the execute-api URL returns 403 by design.
+Use the CloudFront URL from SSM (`/superstruct-user/dev/edge/api-url`) — the
+execute-api URL returns 403 by design.
 
 ## Endpoints
 

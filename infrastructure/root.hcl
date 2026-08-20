@@ -36,6 +36,11 @@ remote_state {
   }
 }
 
+inputs = {
+  project     = local.project
+  environment = local.environment
+}
+
 generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite"

@@ -48,17 +48,28 @@ jobs:
           role-to-assume: ${{ env.DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Order matters: frontend hosting stack first (user-api CORS reads its
-      # AppUrl), then the API, then edge (reads api outputs + secret replica),
-      # then the SPA build+upload.
-      - name: Deploy frontend hosting stack
-        run: npm run deploy:frontend
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_wrapper: false
+
+      - name: Install Terragrunt
+        run: |
+          curl -sfL -o /usr/local/bin/terragrunt \
+            https://github.com/gruntwork-io/terragrunt/releases/download/v1.0.1/terragrunt_linux_amd64
+          chmod +x /usr/local/bin/terragrunt
+
+      # All Terragrunt-managed infrastructure: KMS, Security Hub, OIDC,
+      # Amplify hosting, CloudFront + WAF edge. Steady-state ordering is safe;
+      # a fresh account needs 40-frontend-hosting and the API stack before
+      # 30-edge (see README).
+      - name: Apply infrastructure (Terragrunt)
+        working-directory: infrastructure/dev
+        env:
+          TG_NON_INTERACTIVE: 'true'
+        run: terragrunt run-all apply --backend-bootstrap
 
       - name: Deploy API
         run: npm run deploy:api
-
-      - name: Deploy edge (CloudFront + WAF)
-        run: npm run deploy:edge
 
       - name: Build and publish SPA to Amplify
         run: ./services/frontend/deploy.sh dev

@@ -11,7 +11,6 @@
     "test": "npm run test --workspaces --if-present",
     "package:api": "npm run package -w services/user-api",
     "deploy:api": "npm run deploy -w services/user-api",
-    "deploy:edge": "npm run deploy -w services/edge",
     "deploy:frontend": "npm run deploy -w services/frontend"
   }
 }

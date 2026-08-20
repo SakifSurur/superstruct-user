@@ -29,8 +29,8 @@ inputs = {
   enable_github_oidc = true
   # GitHub's immutable-reference sub format: account and repo IDs are pinned,
   # so the trust survives (only) this exact account/repo, rename-proof.
-  oidc_subjects      = ["SakifSurur@83817182/superstruct-user@1340972459:ref:refs/heads/main"]
-  oidc_audiences     = ["sts.amazonaws.com"]
+  oidc_subjects  = ["SakifSurur@83817182/superstruct-user@1340972459:ref:refs/heads/main"]
+  oidc_audiences = ["sts.amazonaws.com"]
 
   policies = {
     administrator = "arn:aws:iam::aws:policy/AdministratorAccess"

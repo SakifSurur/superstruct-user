@@ -17,9 +17,10 @@ provider:
     metrics: true
     cors:
       allowedOrigins:
-        # Amplify frontend (deploy that stack first; falls back to the vite
+        # Amplify frontend URL published to SSM by infrastructure/dev/
+        # 40-frontend-hosting (apply that unit first; falls back to the vite
         # preview origin so a fresh account can still deploy this stack alone).
-        - ${cf:superstruct-user-frontend-${self:provider.stage}.AppUrl, 'http://localhost:4173'}
+        - ${ssm:/superstruct-user/${self:provider.stage}/frontend/app-url, 'http://localhost:4173'}
         - http://localhost:5173
       allowedHeaders:
         - content-type
