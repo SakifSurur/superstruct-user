@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import SwaggerDocs from './SwaggerDocs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 const TOKEN_KEY = 'superstruct-user.token';
@@ -25,9 +25,9 @@ export default function SwaggerGate() {
               The API documentation is available after logging in.
             </AlertDescription>
           </Alert>
-          <Button asChild>
-            <a href="/">Go to login</a>
-          </Button>
+          <a href="/" className={buttonVariants()}>
+            Go to login
+          </a>
         </CardContent>
       </Card>
     );

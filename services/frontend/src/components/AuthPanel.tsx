@@ -11,7 +11,7 @@ import {
 } from '../api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Card,
   CardContent,
@@ -177,9 +177,9 @@ export default function AuthPanel() {
             )}
           </CardContent>
           <CardFooter className="gap-2">
-            <Button asChild>
-              <a href="/docs">API documentation</a>
-            </Button>
+            <a href="/docs" className={buttonVariants()}>
+              API documentation
+            </a>
             <Button variant="outline" onClick={logout}>
               Log out
             </Button>
