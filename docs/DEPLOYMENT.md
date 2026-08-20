@@ -22,9 +22,10 @@ day-2 operations and teardown. Architecture background is in the
   profile. All commands below assume `AWS_PROFILE` is exported.
 - **Config**: set the account ID and region in `infrastructure/dev/env.hcl` —
   the single source of truth every unit reads.
-- **GitHub token for Amplify**: a classic PAT with `repo` and `admin:repo_hook`
-  scopes, stored once as a SecureString (it also lands in the hosting unit's
-  Terraform state):
+- **GitHub token for Amplify**: a fine-grained PAT with this repo selected and
+  permissions **Contents: read** + **Webhooks: read/write** (or a classic PAT
+  with `repo` + `admin:repo_hook`), stored once as a SecureString (it also
+  lands in the hosting unit's Terraform state):
   `aws ssm put-parameter --name /superstruct-user/dev/github-token --type SecureString --value <PAT>`
 
 ```sh
