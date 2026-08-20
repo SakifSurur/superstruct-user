@@ -1,6 +1,5 @@
 locals {
-  # Everything that influences the built artifact. A change here replaces
-  # terraform_data.publish, which re-runs the build + upload.
+  # A change in anything that influences the artifact re-runs the build + upload.
   source_hash = sha1(join("", concat(
     [for f in sort(fileset("${var.frontend_dir}/src", "**")) : filesha1("${var.frontend_dir}/src/${f}")],
     [

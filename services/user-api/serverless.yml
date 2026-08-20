@@ -17,9 +17,7 @@ provider:
     metrics: true
     cors:
       allowedOrigins:
-        # Amplify frontend URL published to SSM by infrastructure/dev/
-        # 40-frontend-hosting (apply that unit first; falls back to the vite
-        # preview origin so a fresh account can still deploy this stack alone).
+        # Frontend origin from 40-frontend-hosting's SSM parameter; fallback lets a fresh account deploy this stack first.
         - ${ssm:/superstruct-user/${self:provider.stage}/frontend/app-url, 'http://localhost:4173'}
         - http://localhost:5173
       allowedHeaders:
@@ -35,8 +33,7 @@ provider:
   environment:
     USERS_TABLE_NAME: ${self:custom.usersTableName}
     NODE_OPTIONS: --enable-source-maps
-    # Requests must carry this value in x-origin-verify — CloudFront attaches
-    # it at the origin, so direct execute-api calls are rejected with 403.
+    # CloudFront attaches this as x-origin-verify; direct execute-api calls get 403.
     ORIGIN_VERIFY_SECRET: !Sub '{{resolve:secretsmanager:${OriginVerifySecret}:SecretString:headerValue}}'
     JWT_SECRET: !Sub '{{resolve:secretsmanager:${JwtSecret}:SecretString:signingKey}}'
     AUDIT_BUS_NAME: !Ref AuditBus
@@ -71,7 +68,6 @@ provider:
 custom:
   usersTableName: ${self:service}-${self:provider.stage}-users
   auditTableName: ${self:service}-${self:provider.stage}-audit
-  # Customer-managed key from infrastructure/dev/20-kms (+ us-east-1 replica).
   kmsAlias: alias/superstruct-user/${self:provider.stage}
   esbuild:
     bundle: true
@@ -123,7 +119,7 @@ functions:
       - httpApi:
           method: GET
           path: /v1/me/activity
-  # Invoked by AuditToDynamoRule (defined in resources), not by HTTP.
+  # Invoked by AuditToDynamoRule, not by HTTP.
   auditWriter:
     handler: src/handlers/audit-writer.handler
 
@@ -131,7 +127,6 @@ resources:
   Resources:
     UsersTable:
       Type: AWS::DynamoDB::Table
-      # Keep the data if the stack is ever removed.
       DeletionPolicy: Retain
       UpdateReplacePolicy: Retain
       Properties:
@@ -156,7 +151,6 @@ resources:
           PointInTimeRecoveryEnabled: true
         SSESpecification:
           SSEEnabled: true
-        # Expires ephemeral marker items that set expiresAt.
         TimeToLiveSpecification:
           AttributeName: expiresAt
           Enabled: true
@@ -172,8 +166,7 @@ resources:
           GenerateStringKey: headerValue
           ExcludePunctuation: true
           PasswordLength: 48
-        # Replicated so the edge stack (us-east-1) can resolve it by name;
-        # encrypted there with the CMK's us-east-1 replica key (same alias).
+        # Replica lets the edge unit (us-east-1) resolve it by name.
         ReplicaRegions:
           - Region: us-east-1
             KmsKeyId: ${self:custom.kmsAlias}
@@ -190,8 +183,6 @@ resources:
           ExcludePunctuation: true
           PasswordLength: 64
 
-    # --- Audit trail: handlers -> EventBridge bus -> Firehose -> S3 ---
-
     AuditBus:
       Type: AWS::Events::EventBus
       Properties:
@@ -199,7 +190,6 @@ resources:
 
     AuditBucket:
       Type: AWS::S3::Bucket
-      # Audit trails outlive the stack.
       DeletionPolicy: Retain
       UpdateReplacePolicy: Retain
       Properties:
@@ -285,7 +275,7 @@ resources:
                   Resource:
                     - !GetAtt AuditDeliveryStream.Arn
 
-    # Queryable per-user view of the audit trail (S3 stays the full archive).
+    # Per-user queryable view of the audit trail; S3 is the full archive.
     AuditTable:
       Type: AWS::DynamoDB::Table
       Properties:

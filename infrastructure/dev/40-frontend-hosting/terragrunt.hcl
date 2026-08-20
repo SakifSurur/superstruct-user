@@ -1,6 +1,4 @@
-# Amplify Hosting app for the React SPA. The repo has no git connection —
-# builds are pushed with Amplify's manual-deployment API by
-# services/frontend/deploy.sh, which reads the SSM parameters published here.
+# Amplify Hosting app for the React SPA; builds are published by 41-frontend-deploy.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

@@ -60,7 +60,6 @@ describe('GET /security/findings', () => {
       topFailedControls: { id: string; severity: string }[];
     };
     expect(body.counts).toEqual({ critical: 1, high: 2, medium: 1, low: 1 });
-    // deduplicated per control, ordered most severe first
     expect(body.topFailedControls.map((c) => c.id)).toEqual([
       'Config.1',
       'EC2.2',

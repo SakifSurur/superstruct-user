@@ -1,5 +1,4 @@
-// Runs before each test file, ahead of module imports — the lib modules read
-// these at import time and throw if they are missing.
+// Runs before test files import the lib modules, which read these at import time.
 process.env.USERS_TABLE_NAME = 'users-test';
 process.env.JWT_SECRET = 'test-jwt-signing-key-0123456789abcdef0123456789abcdef';
 process.env.ORIGIN_VERIFY_SECRET = 'test-origin-verify-secret';

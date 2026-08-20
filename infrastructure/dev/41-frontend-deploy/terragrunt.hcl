@@ -1,10 +1,6 @@
-# Builds the SPA and publishes it to Amplify Hosting via a manual deployment.
-# Runs on `apply` whenever the frontend source (or the API URL baked into the
-# build) changes; force a re-publish with:
-#   terragrunt apply -replace=terraform_data.publish
-#
-# Requires node/npm, the AWS CLI, python3, zip, and curl on the machine
-# running Terragrunt (true locally and on the CI runner).
+# Builds and publishes the SPA to Amplify when the source or API URL changes.
+# Force a re-publish with: terragrunt apply -replace=terraform_data.publish
+# Requires node/npm, aws CLI, python3, zip, curl on the machine running this.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

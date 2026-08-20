@@ -1,5 +1,4 @@
-# GitHub Actions OIDC identity provider (one per account). Lets workflows
-# assume IAM roles with short-lived tokens — no long-lived AWS keys in GitHub.
+# GitHub Actions OIDC identity provider (one per account).
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

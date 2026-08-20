@@ -3,8 +3,7 @@ data "aws_cloudformation_stack" "api" {
   name     = var.api_stack_name
 }
 
-# us-east-1 replica of the secret owned by the user-api stack. Note: the value
-# ends up in Terraform state (encrypted S3 bucket) — accepted trade-off.
+# The secret value lands in Terraform state (encrypted S3) — accepted trade-off.
 data "aws_secretsmanager_secret_version" "origin_verify" {
   secret_id = "${var.project}/${var.environment}/origin-verify"
 }
@@ -148,8 +147,6 @@ resource "aws_cloudfront_distribution" "api" {
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods         = ["GET", "HEAD"]
 
-    # Managed policies: never cache API responses (PII must not sit in edge
-    # caches), forward everything except Host, add security headers.
     cache_policy_id            = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
     origin_request_policy_id   = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # AllViewerExceptHostHeader
     response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b31e9d03" # SecurityHeadersPolicy
@@ -166,7 +163,6 @@ resource "aws_cloudfront_distribution" "api" {
   }
 }
 
-# The contract consumed by the frontend deploy script and documentation.
 resource "aws_ssm_parameter" "api_url" {
   provider = aws.home
   name     = "/${var.project}/${var.environment}/edge/api-url"

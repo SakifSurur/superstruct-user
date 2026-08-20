@@ -26,8 +26,7 @@ type PublicUser = Omit<UserRecord, 'passwordHash'>;
 const STATS_KEY = 'stats#users';
 const emailKey = (email: string) => `email#${email}`;
 
-// Valid-format hash of a random password; login verifies against it when the
-// email is unknown so both failure paths cost the same wall-clock time.
+// Unknown emails are verified against this so both login failure paths take equal time.
 const DUMMY_HASH =
   'p1DhpzSuXQyIKZzXQGSXUA==:kY8W0Zg2m2wJt0R1nJ0S3v9m5m5nUKq0m8h6b3n0T4t9wS3v9m5m5nUKq0m8h6b3n0T4t9wS3v9m5m5nUKq0m8h6bw==';
 
@@ -73,8 +72,7 @@ export const register = withErrorHandling(async (event) => {
   };
 
   try {
-    // One atomic transaction: the user, an email-uniqueness marker, and the
-    // user counter that backs /stats.
+    // One transaction: user, email-uniqueness marker, stats counter.
     await ddb.send(
       new TransactWriteCommand({
         TransactItems: [

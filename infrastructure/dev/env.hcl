@@ -1,6 +1,3 @@
-# Environment-level settings — single source of truth for the dev environment.
-# Change values here, not in individual units.
-
 locals {
   project        = "superstruct-user"
   environment    = "dev"

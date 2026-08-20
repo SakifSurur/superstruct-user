@@ -8,14 +8,12 @@ export const AUDIT_SOURCE = 'superstruct-user.api';
 
 export type AuditEventType = 'user.registered' | 'user.login.succeeded' | 'user.login.failed';
 
-// Requests arrive via CloudFront, so requestContext.http.sourceIp is an edge
-// IP; the real client is the first hop in x-forwarded-for.
+// sourceIp is a CloudFront edge IP; the real client is the first x-forwarded-for hop.
 const clientIp = (event: APIGatewayProxyEventV2): string | undefined =>
   event.headers['x-forwarded-for']?.split(',')[0]?.trim() ??
   event.requestContext?.http?.sourceIp;
 
-// Emits one audit event to the EventBridge bus. Fail-open by design: an audit
-// outage must not block registration or login, so errors are logged, not thrown.
+// Fail-open: an audit outage must never block registration or login.
 export const audit = async (
   type: AuditEventType,
   detail: Record<string, unknown>,

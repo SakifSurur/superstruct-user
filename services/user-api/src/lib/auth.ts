@@ -42,8 +42,7 @@ export const signToken = (userId: string, email: string): Promise<string> =>
     .setExpirationTime(`${TOKEN_TTL_SECONDS}s`)
     .sign(SIGNING_KEY);
 
-// Verifies the Authorization: Bearer token and returns the authenticated
-// user id. Throws 401 on anything else — no detail leaks about why.
+// Throws a detail-free 401 on any failure.
 export const requireAuth = async (event: APIGatewayProxyEventV2): Promise<{ userId: string }> => {
   const token = event.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!token) throw new HttpError(401, 'Missing bearer token');

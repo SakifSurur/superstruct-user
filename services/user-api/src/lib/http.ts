@@ -26,13 +26,9 @@ export const parseBody = <T>(event: APIGatewayProxyEventV2): T => {
   }
 };
 
-// Set by the stack from Secrets Manager; CloudFront attaches the same value
-// as an origin header. Unset (e.g. offline dev) disables the check.
+// CloudFront attaches the same value as an origin header; unset (local dev) disables the check.
 const ORIGIN_VERIFY_SECRET = process.env.ORIGIN_VERIFY_SECRET;
 
-// Wraps a handler with origin verification and uniform error mapping:
-// HttpError -> its status code, anything else -> 500 with detail kept out
-// of the response.
 export const withErrorHandling =
   (handler: Handler): Handler =>
   async (event) => {

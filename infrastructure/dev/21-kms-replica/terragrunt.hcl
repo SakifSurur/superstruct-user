@@ -1,5 +1,4 @@
-# us-east-1 replica of the application key (20-kms). Same alias, so the edge
-# stack's replicated secret encrypts under the CMK in its own region.
+# us-east-1 replica of the application key (20-kms), same alias.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

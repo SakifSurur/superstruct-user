@@ -1,6 +1,4 @@
-# Customer-managed application key (multi-Region primary). Encrypts the app's
-# Secrets Manager secrets; the us-east-1 replica (21-kms-replica) covers the
-# replicated origin-verify secret used by the CloudFront edge stack.
+# Application CMK (multi-Region primary) for Secrets Manager encryption.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")
@@ -18,7 +16,6 @@ inputs = {
   description  = "${local.env.project} ${local.env.environment} application key (secrets encryption)"
   multi_region = true
 
-  # Account-root default policy: access is governed by IAM policies.
   enable_default_policy   = true
   deletion_window_in_days = 7
 

@@ -14,10 +14,7 @@ interface AuditDetail {
 
 const RETENTION_SECONDS = 90 * 24 * 3600;
 
-// EventBridge -> DynamoDB materializer: turns bus events into the per-user
-// queryable view behind GET /me/activity. S3 (via Firehose) remains the
-// complete archive — events without a userId (e.g. login attempts for unknown
-// emails) are only there.
+// Materializes bus events into the per-user view; events without a userId exist only in the S3 archive.
 export const handler = async (
   event: EventBridgeEvent<AuditEventType, AuditDetail>,
 ): Promise<void> => {

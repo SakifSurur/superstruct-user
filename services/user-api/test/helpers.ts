@@ -1,8 +1,7 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import type { Handler } from '../src/lib/http';
 
-// Minimal HTTP API v2 event. Carries the origin-verify header by default so
-// tests exercise the handler body; pass headers to override.
+// Carries the origin-verify header by default so tests reach the handler body.
 export const makeEvent = (
   overrides: Partial<APIGatewayProxyEventV2> = {},
 ): APIGatewayProxyEventV2 => ({

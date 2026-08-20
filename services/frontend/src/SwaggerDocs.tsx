@@ -3,8 +3,7 @@ import SwaggerUIBundle from 'swagger-ui-dist/swagger-ui-es-bundle.js';
 import 'swagger-ui-dist/swagger-ui.css';
 import { openapiSpec } from './openapi';
 
-// Loaded lazily (React.lazy in App) so Swagger UI's ~1.3MB only downloads
-// when the explorer is actually opened.
+// Lazy-loaded from App — Swagger UI is ~1.3MB.
 export default function SwaggerDocs() {
   const container = useRef<HTMLDivElement>(null);
 

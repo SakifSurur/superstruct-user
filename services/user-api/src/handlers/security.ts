@@ -10,8 +10,7 @@ export interface FindingsSummary {
   fetchedAt: string;
 }
 
-// Deliberately aggregated: no resource ARNs, account IDs, or per-resource
-// detail leave this endpoint — those map the account for an attacker.
+// Aggregate only — resource ARNs and account IDs must never leave this endpoint.
 const summarize = (
   findings: { severity?: string; controlId?: string; title?: string }[],
 ): FindingsSummary => {

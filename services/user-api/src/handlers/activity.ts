@@ -11,8 +11,7 @@ interface AuditItem {
   reason?: string;
 }
 
-// Returns the caller's own audit trail, newest first. The JWT subject is the
-// partition key, so a user can never read anyone else's activity.
+// The partition key is the verified JWT subject — a user can only read their own trail.
 export const list = withErrorHandling(async (event) => {
   const { userId } = await requireAuth(event);
 

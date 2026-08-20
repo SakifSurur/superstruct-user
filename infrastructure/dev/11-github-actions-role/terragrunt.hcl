@@ -1,10 +1,5 @@
-# Deploy role assumed by GitHub Actions via OIDC. Trust is scoped to exactly
-# this repository's main branch — no other repo, branch, or PR can assume it.
-#
-# AdministratorAccess because the serverless deploys manage CloudFormation,
-# IAM roles, Lambda, API Gateway, DynamoDB, EventBridge, Firehose, S3,
-# Secrets Manager, CloudFront, WAF, and Amplify. In a production estate this
-# would be a scoped policy per stack.
+# CI deploy role, assumable only by this repository's main branch via OIDC.
+# AdministratorAccess is a test-account trade-off; production would scope it.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")
@@ -27,8 +22,7 @@ inputs = {
   use_name_prefix = false
 
   enable_github_oidc = true
-  # GitHub's immutable-reference sub format: account and repo IDs are pinned,
-  # so the trust survives (only) this exact account/repo, rename-proof.
+  # GitHub's immutable-reference sub format: account/repo IDs pinned, rename-proof.
   oidc_subjects  = ["SakifSurur@83817182/superstruct-user@1340972459:ref:refs/heads/main"]
   oidc_audiences = ["sts.amazonaws.com"]
 

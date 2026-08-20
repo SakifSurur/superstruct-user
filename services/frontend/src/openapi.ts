@@ -1,5 +1,4 @@
-// OpenAPI 3 description of the user API, rendered by the embedded Swagger UI.
-// The server URL is injected at build time so "Try it out" hits the real API.
+// The server URL is injected at build time so Swagger's "Try it out" hits the real API.
 
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
 
