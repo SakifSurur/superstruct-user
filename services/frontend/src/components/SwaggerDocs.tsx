@@ -22,5 +22,5 @@ export default function SwaggerDocs() {
     };
   }, []);
 
-  return <div ref={container} className="swagger-container" />;
+  return <div ref={container} className="swagger-container rounded-md bg-white p-2" />;
 }

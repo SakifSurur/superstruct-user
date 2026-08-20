@@ -3,7 +3,10 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "noUncheckedIndexedAccess": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["dist", ".amplify-hosting"]

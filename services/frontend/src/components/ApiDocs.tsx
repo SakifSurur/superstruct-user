@@ -1,4 +1,15 @@
-const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+
+const BASE_URL: string = import.meta.env.PUBLIC_API_URL ?? '';
 
 interface Endpoint {
   method: string;
@@ -51,45 +62,53 @@ const ENDPOINTS: Endpoint[] = [
 
 export default function ApiDocs() {
   return (
-    <details className="card docs">
-      <summary>API reference</summary>
-      <p className="muted">
-        Base URL: <code>{BASE_URL}</code> — JSON in, JSON out. Authenticated endpoints expect{' '}
-        <code>Authorization: Bearer &lt;token&gt;</code> from <code>/v1/login</code>.
-      </p>
-      <table>
-        <thead>
-          <tr>
-            <th>Endpoint</th>
-            <th>Auth</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ENDPOINTS.map((e) => (
-            <tr key={`${e.method} ${e.path}`}>
-              <td>
-                <code>
-                  {e.method} {e.path}
-                </code>
-              </td>
-              <td>{e.auth ? 'JWT' : '—'}</td>
-              <td>
-                {e.description}
-                {e.example && (
-                  <div className="muted">
-                    <code>{e.example}</code>
-                  </div>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="muted">
-        Errors are JSON: <code>{'{ "message": "..." }'}</code> with 400 (validation), 401 (bad or
-        missing token/credentials), 409 (email already registered).
-      </p>
-    </details>
+    <Card>
+      <CardHeader>
+        <CardTitle>API reference</CardTitle>
+        <CardDescription>
+          Base URL <code className="font-mono text-xs">{BASE_URL}</code> — JSON in, JSON out.
+          Authenticated endpoints expect{' '}
+          <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code> from{' '}
+          <code className="font-mono text-xs">/v1/login</code>.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Endpoint</TableHead>
+              <TableHead>Auth</TableHead>
+              <TableHead>Description</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ENDPOINTS.map((e) => (
+              <TableRow key={`${e.method} ${e.path}`}>
+                <TableCell className="align-top whitespace-nowrap">
+                  <code className="font-mono text-xs">
+                    {e.method} {e.path}
+                  </code>
+                </TableCell>
+                <TableCell className="align-top">
+                  {e.auth ? <Badge variant="secondary">JWT</Badge> : <span className="text-muted-foreground">—</span>}
+                </TableCell>
+                <TableCell className="align-top">
+                  {e.description}
+                  {e.example && (
+                    <div className="mt-1">
+                      <code className="font-mono text-xs text-muted-foreground">{e.example}</code>
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        <p className="text-xs text-muted-foreground">
+          Errors are JSON: <code className="font-mono">{'{ "message": "..." }'}</code> with 400
+          (validation), 401 (bad or missing token/credentials), 409 (email already registered).
+        </p>
+      </CardContent>
+    </Card>
   );
 }

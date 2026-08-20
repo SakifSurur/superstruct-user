@@ -10,6 +10,21 @@ import {
   type User,
 } from '../api';
 import ApiDocs from './ApiDocs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const SwaggerDocs = lazy(() => import('./SwaggerDocs'));
 
@@ -17,6 +32,13 @@ const ACTIVITY_LABELS: Record<ActivityItem['type'], string> = {
   'user.registered': 'Account created',
   'user.login.succeeded': 'Signed in',
   'user.login.failed': 'Failed sign-in attempt',
+};
+
+const SEVERITY_STYLES: Record<string, string> = {
+  critical: 'bg-red-700 text-white',
+  high: 'bg-orange-600 text-white',
+  medium: 'bg-amber-600 text-white',
+  low: 'bg-muted text-muted-foreground',
 };
 
 const TOKEN_KEY = 'superstruct-user.token';
@@ -83,140 +105,180 @@ export default function AuthPanel() {
     }
   };
 
-  return (
-    <>
-      {profile ? (
-        <section className="card">
-          <h2>
-            {profile.firstName} {profile.lastName}
-          </h2>
-          <dl>
-            <dt>Email</dt>
-            <dd>{profile.email}</dd>
-            <dt>User ID</dt>
-            <dd>
-              <code>{profile.id}</code>
-            </dd>
-            <dt>Registered</dt>
-            <dd>{new Date(profile.createdAt).toLocaleString()}</dd>
-          </dl>
-          <button onClick={logout}>Log out</button>
+  if (profile) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">
+              {profile.firstName} {profile.lastName}
+            </CardTitle>
+            <CardDescription>{profile.email}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-sm">
+              <dt className="text-muted-foreground">User ID</dt>
+              <dd>
+                <code className="font-mono text-xs">{profile.id}</code>
+              </dd>
+              <dt className="text-muted-foreground">Registered</dt>
+              <dd>{new Date(profile.createdAt).toLocaleString()}</dd>
+            </dl>
 
-          {events.length > 0 && (
-            <div className="posture">
-              <h3>Recent activity</h3>
-              <ul className="activity">
-                {events.map((e) => (
-                  <li key={`${e.at}-${e.type}`}>
-                    <span className={e.type === 'user.login.failed' ? 'activity-bad' : ''}>
-                      {ACTIVITY_LABELS[e.type] ?? e.type}
-                    </span>{' '}
-                    — {new Date(e.at).toLocaleString()}
-                    {e.sourceIp && <span className="muted"> · from {e.sourceIp}</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {posture && (
-            <div className="posture">
-              <h3>Platform security posture</h3>
-              <div className="badges">
-                <span className="badge critical">{posture.counts.critical} critical</span>
-                <span className="badge high">{posture.counts.high} high</span>
-                <span className="badge medium">{posture.counts.medium} medium</span>
-                <span className="badge low">{posture.counts.low} low</span>
-              </div>
-              <ul>
-                {posture.topFailedControls.map((c) => (
-                  <li key={c.id}>
-                    <code>{c.id}</code> {c.title}
-                  </li>
-                ))}
-              </ul>
-              <p className="muted">
-                Open findings from AWS Security Hub (FSBP + NIST 800-53), updated{' '}
-                {new Date(posture.fetchedAt).toLocaleTimeString()}
-              </p>
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className="card">
-          <div className="tabs">
-            <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>
-              Log in
-            </button>
-            <button
-              className={mode === 'register' ? 'active' : ''}
-              onClick={() => setMode('register')}
-            >
-              Register
-            </button>
-          </div>
-
-          <form onSubmit={(e) => void onSubmit(e)} className="stack">
-            {mode === 'register' && (
+            {events.length > 0 && (
               <>
-                <input
-                  type="text"
-                  placeholder="First name"
+                <Separator />
+                <div className="space-y-2">
+                  <h3 className="font-medium">Recent activity</h3>
+                  <ul className="space-y-1.5 text-sm">
+                    {events.map((e) => (
+                      <li key={`${e.at}-${e.type}`} className="flex flex-wrap items-baseline gap-x-2">
+                        <span
+                          className={
+                            e.type === 'user.login.failed'
+                              ? 'font-medium text-destructive'
+                              : 'font-medium'
+                          }
+                        >
+                          {ACTIVITY_LABELS[e.type] ?? e.type}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {new Date(e.at).toLocaleString()}
+                          {e.sourceIp && ` · from ${e.sourceIp}`}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            {posture && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h3 className="font-medium">Platform security posture</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['critical', 'high', 'medium', 'low'] as const).map((sev) => (
+                      <Badge key={sev} className={SEVERITY_STYLES[sev]}>
+                        {posture.counts[sev]} {sev}
+                      </Badge>
+                    ))}
+                  </div>
+                  <ul className="space-y-1 text-sm">
+                    {posture.topFailedControls.map((c) => (
+                      <li key={c.id}>
+                        <code className="font-mono text-xs">{c.id}</code> {c.title}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Open findings from AWS Security Hub (FSBP + NIST 800-53), updated{' '}
+                    {new Date(posture.fetchedAt).toLocaleTimeString()}
+                  </p>
+                </div>
+              </>
+            )}
+          </CardContent>
+          <CardFooter>
+            <Button variant="outline" onClick={logout}>
+              Log out
+            </Button>
+          </CardFooter>
+        </Card>
+
+        <ApiDocs />
+
+        <Card>
+          <details onToggle={(e) => setSwaggerOpen((e.target as HTMLDetailsElement).open)}>
+            <summary className="cursor-pointer px-6 font-medium">
+              Interactive API explorer (Swagger UI)
+            </summary>
+            <div className="px-6 pt-4">
+              {swaggerOpen && (
+                <Suspense fallback={<p className="text-sm text-muted-foreground">Loading Swagger UI…</p>}>
+                  <SwaggerDocs />
+                </Suspense>
+              )}
+            </div>
+          </details>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <Tabs value={mode} onValueChange={(v) => setMode(v as 'login' | 'register')}>
+          <TabsList className="w-full">
+            <TabsTrigger value="login">Log in</TabsTrigger>
+            <TabsTrigger value="register">Register</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
+          {mode === 'register' && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First name</Label>
+                <Input
+                  id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
-                <input
-                  type="text"
-                  placeholder="Last name"
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last name</Label>
+                <Input
+                  id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
                 />
-              </>
-            )}
-            <input
+              </div>
+            </>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               type="email"
-              placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <input
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
               type="password"
-              placeholder="Password (min 8 characters)"
+              placeholder="Min 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={8}
               required
             />
-            <button type="submit" disabled={busy}>
-              {mode === 'register' ? 'Create account' : 'Log in'}
-            </button>
-          </form>
+          </div>
+          <Button type="submit" className="w-full" disabled={busy}>
+            {mode === 'register' ? 'Create account' : 'Log in'}
+          </Button>
+        </form>
 
-          {notice && <p className="notice">{notice}</p>}
-          {error && <p className="error">{error}</p>}
-        </section>
-      )}
-
-      {profile && (
-        <>
-          <ApiDocs />
-
-          <details
-            className="card docs"
-            onToggle={(e) => setSwaggerOpen((e.target as HTMLDetailsElement).open)}
-          >
-            <summary>Interactive API explorer (Swagger UI)</summary>
-            {swaggerOpen && (
-              <Suspense fallback={<p className="muted">Loading Swagger UI…</p>}>
-                <SwaggerDocs />
-              </Suspense>
-            )}
-          </details>
-        </>
-      )}
-    </>
+        {notice && (
+          <Alert className="mt-4">
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+      </CardContent>
+    </Card>
   );
 }
