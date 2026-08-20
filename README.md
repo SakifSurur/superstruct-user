@@ -97,15 +97,15 @@ URL also works but bypasses those protections.
 
 | Method | Path                    | Notes                                                                                      |
 | ------ | ----------------------- | ------------------------------------------------------------------------------------------ |
-| POST   | `/v1/register`          | body: `{ "email", "password", "firstName", "lastName" }` → 201 with auto-generated user ID |
-| POST   | `/v1/login`             | body: `{ "email", "password" }` → `{ token, tokenType, expiresIn, user }` (JWT, HS256, 1h) |
-| GET    | `/v1/me`                | requires `Authorization: Bearer <token>`; returns the profile                              |
-| GET    | `/v1/stats`             | `{ totalUsers }` — O(1) read of a transactional counter                                    |
-| GET    | `/v1/me/activity`       | JWT-protected; the caller's last 20 audit events, newest first                             |
-| GET    | `/v1/security/findings` | JWT-protected; aggregated Security Hub posture (no resource identifiers)                   |
+| POST   | `/api/v1/register`          | body: `{ "email", "password", "firstName", "lastName" }` → 201 with auto-generated user ID |
+| POST   | `/api/v1/login`             | body: `{ "email", "password" }` → `{ token, tokenType, expiresIn, user }` (JWT, HS256, 1h) |
+| GET    | `/api/v1/me`                | requires `Authorization: Bearer <token>`; returns the profile                              |
+| GET    | `/api/v1/stats`             | `{ totalUsers }` — O(1) read of a transactional counter                                    |
+| GET    | `/api/v1/me/activity`       | JWT-protected; the caller's last 20 audit events, newest first                             |
+| GET    | `/api/v1/security/findings` | JWT-protected; aggregated Security Hub posture (no resource identifiers)                   |
 
-The API is versioned under `/v1`; a breaking change gets a `/v2` prefix beside
-it rather than mutating `/v1`. The frontend renders this table as a collapsible
+The API is versioned under `/api/v1`; a breaking change gets an `/api/v2`
+prefix beside it rather than mutating `/api/v1`. The frontend renders this table as a collapsible
 "API reference" section.
 
 Auth internals: passwords are scrypt-hashed (`node:crypto`, per-user salt,
@@ -124,7 +124,7 @@ handler ──> EventBridge bus (superstruct-user-audit-<stage>)
               ├──> Kinesis Firehose (60s/1MB buffer, GZIP)
               │      └─> s3://superstruct-user-audit-<stage>-<account>/audit/year=/month=/day=/
               └──> auditWriter Lambda ──> DynamoDB audit table (userId + time, 90-day TTL)
-                                            └─> GET /v1/me/activity (JWT, own events only)
+                                            └─> GET /api/v1/me/activity (JWT, own events only)
 ```
 
 S3 is the immutable archive; DynamoDB is the queryable per-user view shown as

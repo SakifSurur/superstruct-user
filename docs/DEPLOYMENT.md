@@ -84,12 +84,12 @@ API=$(aws ssm get-parameter --name /superstruct-user/dev/edge/api-url \
 APP=$(aws ssm get-parameter --name /superstruct-user/dev/frontend/app-url \
   --region eu-central-1 --query Parameter.Value --output text)
 
-curl -s $API/v1/stats                          # {"totalUsers":0}
+curl -s $API/api/v1/stats                          # {"totalUsers":0}
 curl -s -o /dev/null -w '%{http_code}\n' $APP  # 200
 ```
 
 Register + login through the frontend (`$APP`) or with curl against
-`$API/v1/register` / `/v1/login` — see the API table in the README.
+`$API/api/v1/register` / `/api/v1/login` — see the API table in the README.
 
 ## CI/CD (GitHub Actions)
 

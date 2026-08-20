@@ -32,13 +32,13 @@ export const register = (input: {
   password: string;
   firstName: string;
   lastName: string;
-}): Promise<User> => request('/v1/register', { method: 'POST', body: JSON.stringify(input) });
+}): Promise<User> => request('/api/v1/register', { method: 'POST', body: JSON.stringify(input) });
 
 export const login = (input: { email: string; password: string }): Promise<LoginResult> =>
-  request('/v1/login', { method: 'POST', body: JSON.stringify(input) });
+  request('/api/v1/login', { method: 'POST', body: JSON.stringify(input) });
 
 export const me = (token: string): Promise<User> =>
-  request('/v1/me', { headers: { authorization: `Bearer ${token}` } });
+  request('/api/v1/me', { headers: { authorization: `Bearer ${token}` } });
 
 export interface FindingsSummary {
   counts: { critical: number; high: number; medium: number; low: number };
@@ -47,7 +47,7 @@ export interface FindingsSummary {
 }
 
 export const securityFindings = (token: string): Promise<FindingsSummary> =>
-  request('/v1/security/findings', { headers: { authorization: `Bearer ${token}` } });
+  request('/api/v1/security/findings', { headers: { authorization: `Bearer ${token}` } });
 
 export interface ActivityItem {
   type: 'user.registered' | 'user.login.succeeded' | 'user.login.failed';
@@ -58,4 +58,4 @@ export interface ActivityItem {
 }
 
 export const activity = (token: string): Promise<{ items: ActivityItem[] }> =>
-  request('/v1/me/activity', { headers: { authorization: `Bearer ${token}` } });
+  request('/api/v1/me/activity', { headers: { authorization: `Bearer ${token}` } });

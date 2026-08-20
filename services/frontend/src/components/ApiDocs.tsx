@@ -22,39 +22,39 @@ interface Endpoint {
 const ENDPOINTS: Endpoint[] = [
   {
     method: 'POST',
-    path: '/v1/register',
+    path: '/api/v1/register',
     auth: false,
     description: 'Create an account. Password must be at least 8 characters.',
     example: '{ "email": "...", "password": "...", "firstName": "...", "lastName": "..." }',
   },
   {
     method: 'POST',
-    path: '/v1/login',
+    path: '/api/v1/login',
     auth: false,
     description: 'Exchange credentials for a JWT (HS256, valid 1 hour).',
     example: '{ "email": "...", "password": "..." }',
   },
   {
     method: 'GET',
-    path: '/v1/me',
+    path: '/api/v1/me',
     auth: true,
     description: 'Profile of the authenticated user.',
   },
   {
     method: 'GET',
-    path: '/v1/me/activity',
+    path: '/api/v1/me/activity',
     auth: true,
     description: 'Your last 20 audit events (registration, sign-ins, failed attempts).',
   },
   {
     method: 'GET',
-    path: '/v1/stats',
+    path: '/api/v1/stats',
     auth: false,
     description: 'Total number of registered users.',
   },
   {
     method: 'GET',
-    path: '/v1/security/findings',
+    path: '/api/v1/security/findings',
     auth: true,
     description: 'Aggregated AWS Security Hub posture (severity counts, top failed controls).',
   },
@@ -69,7 +69,7 @@ export default function ApiDocs() {
           Base URL <code className="font-mono text-xs">{BASE_URL}</code> — JSON in, JSON out.
           Authenticated endpoints expect{' '}
           <code className="font-mono text-xs">Authorization: Bearer &lt;token&gt;</code> from{' '}
-          <code className="font-mono text-xs">/v1/login</code>.
+          <code className="font-mono text-xs">/api/v1/login</code>.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

@@ -87,37 +87,37 @@ functions:
     events:
       - httpApi:
           method: POST
-          path: /v1/register
+          path: /api/v1/register
   login:
     handler: src/handlers/auth.login
     events:
       - httpApi:
           method: POST
-          path: /v1/login
+          path: /api/v1/login
   me:
     handler: src/handlers/auth.me
     events:
       - httpApi:
           method: GET
-          path: /v1/me
+          path: /api/v1/me
   stats:
     handler: src/handlers/auth.stats
     events:
       - httpApi:
           method: GET
-          path: /v1/stats
+          path: /api/v1/stats
   securityFindings:
     handler: src/handlers/security.findings
     events:
       - httpApi:
           method: GET
-          path: /v1/security/findings
+          path: /api/v1/security/findings
   myActivity:
     handler: src/handlers/activity.list
     events:
       - httpApi:
           method: GET
-          path: /v1/me/activity
+          path: /api/v1/me/activity
   # Invoked by AuditToDynamoRule, not by HTTP.
   auditWriter:
     handler: src/handlers/audit-writer.handler

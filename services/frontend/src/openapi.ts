@@ -9,7 +9,7 @@ export const openapiSpec = {
     version: '1.0.0',
     description:
       'JWT-authenticated user API served via CloudFront + WAF. ' +
-      'Obtain a token from `POST /v1/login`, then click **Authorize** and paste it to try the secured endpoints.',
+      'Obtain a token from `POST /api/v1/login`, then click **Authorize** and paste it to try the secured endpoints.',
   },
   servers: [{ url: BASE_URL }],
   components: {
@@ -82,7 +82,7 @@ export const openapiSpec = {
     },
   },
   paths: {
-    '/v1/register': {
+    '/api/v1/register': {
       post: {
         tags: ['auth'],
         summary: 'Create an account',
@@ -119,7 +119,7 @@ export const openapiSpec = {
         },
       },
     },
-    '/v1/login': {
+    '/api/v1/login': {
       post: {
         tags: ['auth'],
         summary: 'Exchange credentials for a JWT (valid 1 hour)',
@@ -152,7 +152,7 @@ export const openapiSpec = {
         },
       },
     },
-    '/v1/me': {
+    '/api/v1/me': {
       get: {
         tags: ['auth'],
         summary: 'Profile of the authenticated user',
@@ -166,7 +166,7 @@ export const openapiSpec = {
         },
       },
     },
-    '/v1/me/activity': {
+    '/api/v1/me/activity': {
       get: {
         tags: ['audit'],
         summary: "The caller's last 20 audit events, newest first",
@@ -192,7 +192,7 @@ export const openapiSpec = {
         },
       },
     },
-    '/v1/stats': {
+    '/api/v1/stats': {
       get: {
         tags: ['public'],
         summary: 'Total number of registered users',
@@ -208,7 +208,7 @@ export const openapiSpec = {
         },
       },
     },
-    '/v1/security/findings': {
+    '/api/v1/security/findings': {
       get: {
         tags: ['audit'],
         summary: 'Aggregated AWS Security Hub posture',
