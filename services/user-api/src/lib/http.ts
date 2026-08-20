@@ -26,16 +26,10 @@ export const parseBody = <T>(event: APIGatewayProxyEventV2): T => {
   }
 };
 
-// CloudFront attaches the same value as an origin header; unset (local dev) disables the check.
-const ORIGIN_VERIFY_SECRET = process.env.ORIGIN_VERIFY_SECRET;
-
 export const withErrorHandling =
   (handler: Handler): Handler =>
   async (event) => {
     try {
-      if (ORIGIN_VERIFY_SECRET && event.headers['x-origin-verify'] !== ORIGIN_VERIFY_SECRET) {
-        throw new HttpError(403, 'Forbidden');
-      }
       return await handler(event);
     } catch (error) {
       if (error instanceof HttpError) {

@@ -10,10 +10,9 @@ browser ──> Amplify Hosting (Astro SSR, WEB_COMPUTE)
              ▼
            CloudFront (TLS, security headers, no caching)
              │  WAFv2: AWS managed rules + 300 req/5min/IP rate limit
-             │  adds x-origin-verify: <secret>
              ▼
-           API Gateway (HTTP API) ──> Lambda (rejects requests without the
-             │                        correct x-origin-verify header)
+           API Gateway (HTTP API) ──> Lambda
+             │
              ▼
            DynamoDB (SSE, PITR, DeletionPolicy: Retain)
 ```
@@ -23,16 +22,16 @@ browser ──> Amplify Hosting (Astro SSR, WEB_COMPUTE)
 Only the code that runs (Lambda) is an oss-serverless stack; everything
 resources-only is Terraform + Terragrunt:
 
-| Half | What | Where |
-| --- | --- | --- |
-| `services/user-api` (osls) | Functions, routes, IAM, DynamoDB tables, secrets, audit pipeline | eu-central-1 |
-| `services/frontend` | Astro SSR app (React auth island) — published by `41-frontend-deploy` | — |
-| `infrastructure/` (Terragrunt) | Everything below | — |
+| Half                           | What                                                                  | Where        |
+| ------------------------------ | --------------------------------------------------------------------- | ------------ |
+| `services/user-api` (osls)     | Functions, routes, IAM, DynamoDB tables, secrets, audit pipeline      | eu-central-1 |
+| `services/frontend`            | Astro SSR app (React auth island) — published by `41-frontend-deploy` | —            |
+| `infrastructure/` (Terragrunt) | Everything below                                                      | —            |
 
 ```
 infrastructure/
   root.hcl                  # S3 remote state (auto-bootstrapped) + generated provider
-  dev/
+  dev/                      # Environment - (e.g. dev, staging, prod)
     env.hcl                 # region, account ID — single source of truth
     00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
     10-github-oidc-provider/# GitHub Actions OIDC provider
@@ -48,18 +47,13 @@ infrastructure/
 ¹ CloudFront-scoped WAF web ACLs can only live in us-east-1; a unit pins its
 provider region with a `region.hcl` next to its `terragrunt.hcl`.
 
-Run with `terragrunt plan` / `terragrunt apply` inside a unit directory, or
-`terragrunt run-all apply` from `infrastructure/dev` (`--backend-bootstrap`
-on first ever run).
-
 **Cross-tool contract**: within Terragrunt, units wire together with
 `dependency` blocks (`41-frontend-deploy` consumes `40-frontend-hosting`'s
 app id and `30-edge`'s API URL). Across tools, SSM Parameter Store is the
 seam: `40-frontend-hosting` publishes
 `/superstruct-user/<stage>/frontend/app-url` (read by the API's CORS config)
 and `30-edge` publishes `.../edge/api-url`; `30-edge` itself reads the
-user-api stack's `ApiDomain` output and the origin-verify secret's us-east-1
-replica.
+user-api stack's `ApiDomain` output.
 
 The frontend is Astro with server-side rendering (Amplify `WEB_COMPUTE`);
 the auth panel is a client-only React island since the JWT lives in the
@@ -72,9 +66,6 @@ Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
 
 ## PII safety measures
 
-- **No direct API access** — Lambda rejects requests missing the
-  `x-origin-verify` header that only CloudFront attaches (secret generated in
-  Secrets Manager, never committed or logged).
 - **No edge caching** — CloudFront uses the managed `CachingDisabled` policy so
   user data never sits in a CDN cache.
 - **TLS everywhere** — viewers are redirected to HTTPS; CloudFront→origin is
@@ -97,20 +88,21 @@ npm install
 npm run deploy:api                                      # API stack (osls)
 ```
 
-Fresh account: follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. The public
-API URL is the CloudFront one from SSM (`/superstruct-user/dev/edge/api-url`)
-— the execute-api URL returns 403 by design.
+Fresh account: follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. The
+CloudFront URL from SSM (`/superstruct-user/dev/edge/api-url`) is the
+recommended entry (WAF, rate limiting, security headers); the raw execute-api
+URL also works but bypasses those protections.
 
 ## Endpoints
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| POST | `/v1/register` | body: `{ "email", "password", "firstName", "lastName" }` → 201 with auto-generated user ID |
-| POST | `/v1/login` | body: `{ "email", "password" }` → `{ token, tokenType, expiresIn, user }` (JWT, HS256, 1h) |
-| GET | `/v1/me` | requires `Authorization: Bearer <token>`; returns the profile |
-| GET | `/v1/stats` | `{ totalUsers }` — O(1) read of a transactional counter |
-| GET | `/v1/me/activity` | JWT-protected; the caller's last 20 audit events, newest first |
-| GET | `/v1/security/findings` | JWT-protected; aggregated Security Hub posture (no resource identifiers) |
+| Method | Path                    | Notes                                                                                      |
+| ------ | ----------------------- | ------------------------------------------------------------------------------------------ |
+| POST   | `/v1/register`          | body: `{ "email", "password", "firstName", "lastName" }` → 201 with auto-generated user ID |
+| POST   | `/v1/login`             | body: `{ "email", "password" }` → `{ token, tokenType, expiresIn, user }` (JWT, HS256, 1h) |
+| GET    | `/v1/me`                | requires `Authorization: Bearer <token>`; returns the profile                              |
+| GET    | `/v1/stats`             | `{ totalUsers }` — O(1) read of a transactional counter                                    |
+| GET    | `/v1/me/activity`       | JWT-protected; the caller's last 20 audit events, newest first                             |
+| GET    | `/v1/security/findings` | JWT-protected; aggregated Security Hub posture (no resource identifiers)                   |
 
 The API is versioned under `/v1`; a breaking change gets a `/v2` prefix beside
 it rather than mutating `/v1`. The frontend renders this table as a collapsible

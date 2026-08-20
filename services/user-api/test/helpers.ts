@@ -1,7 +1,6 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 import type { Handler } from '../src/lib/http';
 
-// Carries the origin-verify header by default so tests reach the handler body.
 export const makeEvent = (
   overrides: Partial<APIGatewayProxyEventV2> = {},
 ): APIGatewayProxyEventV2 => ({
@@ -11,11 +10,8 @@ export const makeEvent = (
   rawQueryString: '',
   isBase64Encoded: false,
   requestContext: {} as APIGatewayProxyEventV2['requestContext'],
+  headers: {},
   ...overrides,
-  headers: {
-    'x-origin-verify': process.env.ORIGIN_VERIFY_SECRET,
-    ...overrides.headers,
-  },
 });
 
 export const jsonEvent = (

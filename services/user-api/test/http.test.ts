@@ -52,16 +52,4 @@ describe('withErrorHandling', () => {
     });
   });
 
-  it('rejects requests without the origin-verify header with 403', async () => {
-    const handler = withErrorHandling(() => Promise.resolve(json(200, { ok: true })));
-    const event = makeEvent();
-    delete event.headers['x-origin-verify'];
-    await expect(invoke(handler, event)).resolves.toMatchObject({ statusCode: 403 });
-  });
-
-  it('rejects requests with a wrong origin-verify header with 403', async () => {
-    const handler = withErrorHandling(() => Promise.resolve(json(200, { ok: true })));
-    const event = makeEvent({ headers: { 'x-origin-verify': 'wrong-value' } });
-    await expect(invoke(handler, event)).resolves.toMatchObject({ statusCode: 403 });
-  });
 });

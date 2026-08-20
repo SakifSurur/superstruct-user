@@ -33,8 +33,6 @@ provider:
   environment:
     USERS_TABLE_NAME: ${self:custom.usersTableName}
     NODE_OPTIONS: --enable-source-maps
-    # CloudFront attaches this as x-origin-verify; direct execute-api calls get 403.
-    ORIGIN_VERIFY_SECRET: !Sub '{{resolve:secretsmanager:${OriginVerifySecret}:SecretString:headerValue}}'
     JWT_SECRET: !Sub '{{resolve:secretsmanager:${JwtSecret}:SecretString:signingKey}}'
     AUDIT_BUS_NAME: !Ref AuditBus
     AUDIT_TABLE_NAME: ${self:custom.auditTableName}
@@ -155,22 +153,6 @@ resources:
         TimeToLiveSpecification:
           AttributeName: expiresAt
           Enabled: true
-
-    OriginVerifySecret:
-      Type: AWS::SecretsManager::Secret
-      Properties:
-        Name: superstruct-user/${self:provider.stage}/origin-verify
-        Description: Shared header value proving a request came through CloudFront.
-        KmsKeyId: ${self:custom.kmsAlias}
-        GenerateSecretString:
-          SecretStringTemplate: '{}'
-          GenerateStringKey: headerValue
-          ExcludePunctuation: true
-          PasswordLength: 48
-        # Replica lets the edge unit (us-east-1) resolve it by name.
-        ReplicaRegions:
-          - Region: us-east-1
-            KmsKeyId: ${self:custom.kmsAlias}
 
     JwtSecret:
       Type: AWS::SecretsManager::Secret

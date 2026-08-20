@@ -31,9 +31,8 @@ export AWS_PROFILE=<your-profile>
 ## Fresh-account bootstrap
 
 Ordering matters only on the very first deploy, because two seams cross tool
-boundaries: `30-edge` reads the API stack's `ApiDomain` output and the
-origin-verify secret's us-east-1 replica, and the API's CORS reads the Amplify
-URL from SSM.
+boundaries: `30-edge` reads the API stack's `ApiDomain` output, and the API's
+CORS reads the Amplify URL from SSM.
 
 ```sh
 cd infrastructure/dev
@@ -70,8 +69,6 @@ APP=$(aws ssm get-parameter --name /superstruct-user/dev/frontend/app-url \
   --region eu-central-1 --query Parameter.Value --output text)
 
 curl -s $API/v1/stats                          # {"totalUsers":0}
-curl -s -o /dev/null -w '%{http_code}\n' \
-  https://<api-id>.execute-api.eu-central-1.amazonaws.com/v1/stats   # 403 — by design
 curl -s -o /dev/null -w '%{http_code}\n' $APP  # 200
 ```
 
@@ -146,11 +143,8 @@ Left behind on purpose, remove manually if wanted:
 - **CLOUDFRONT-scoped WAF web ACLs only exist in us-east-1** — hence
   `30-edge`'s `region.hcl`. Units pin a provider region that way; remote state
   always stays in the home region.
-- **Direct execute-api calls return 403 by design** — Lambda requires the
-  `x-origin-verify` header only CloudFront attaches. For curl against the raw
-  API, read the header value from the `superstruct-user/dev/origin-verify`
-  secret.
-- **The origin-verify secret value lands in the `30-edge` Terraform state**
-  (encrypted S3) — accepted trade-off, noted in the unit.
+- **Direct execute-api access is enabled** — the raw API URL works, but it
+  bypasses CloudFront's WAF, rate limiting, and security headers; treat the
+  CloudFront URL as the public entry.
 - **New URLs on recreate**: CloudFront domains and Amplify URLs are generated;
   destroying and recreating those units changes both public URLs.

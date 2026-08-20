@@ -3,14 +3,8 @@ data "aws_cloudformation_stack" "api" {
   name     = var.api_stack_name
 }
 
-# The secret value lands in Terraform state (encrypted S3) — accepted trade-off.
-data "aws_secretsmanager_secret_version" "origin_verify" {
-  secret_id = "${var.project}/${var.environment}/origin-verify"
-}
-
 locals {
-  api_domain    = data.aws_cloudformation_stack.api.outputs["ApiDomain"]
-  origin_verify = jsondecode(data.aws_secretsmanager_secret_version.origin_verify.secret_string)["headerValue"]
+  api_domain = data.aws_cloudformation_stack.api.outputs["ApiDomain"]
 }
 
 resource "aws_wafv2_web_acl" "api" {
@@ -132,11 +126,6 @@ resource "aws_cloudfront_distribution" "api" {
       https_port             = 443
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
-    }
-
-    custom_header {
-      name  = "x-origin-verify"
-      value = local.origin_verify
     }
   }
 
