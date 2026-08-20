@@ -6,8 +6,16 @@ locals {
 
   project        = local.env.project
   environment    = local.env.environment
-  aws_region     = local.env.aws_region
   aws_account_id = local.env.aws_account_id
+
+  # A unit may pin its provider to another region (e.g. us-east-1 for KMS
+  # replicas) by dropping a region.hcl next to its terragrunt.hcl containing:
+  #   locals { aws_region = "us-east-1" }
+  # Remote state always stays in the environment's home region.
+  aws_region = try(
+    read_terragrunt_config("${get_terragrunt_dir()}/region.hcl").locals.aws_region,
+    local.env.aws_region,
+  )
 }
 
 remote_state {
@@ -22,7 +30,7 @@ remote_state {
   config = {
     bucket       = "${local.project}-terraform-state-${local.aws_account_id}"
     key          = "${path_relative_to_include()}/terraform.tfstate"
-    region       = local.aws_region
+    region       = local.env.aws_region
     encrypt      = true
     use_lockfile = true
   }

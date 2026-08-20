@@ -70,6 +70,8 @@ provider:
 custom:
   usersTableName: ${self:service}-${self:provider.stage}-users
   auditTableName: ${self:service}-${self:provider.stage}-audit
+  # Customer-managed key from infrastructure/dev/20-kms (+ us-east-1 replica).
+  kmsAlias: alias/superstruct-user/${self:provider.stage}
   esbuild:
     bundle: true
     minify: true
@@ -163,20 +165,24 @@ resources:
       Properties:
         Name: superstruct-user/${self:provider.stage}/origin-verify
         Description: Shared header value proving a request came through CloudFront.
+        KmsKeyId: ${self:custom.kmsAlias}
         GenerateSecretString:
           SecretStringTemplate: '{}'
           GenerateStringKey: headerValue
           ExcludePunctuation: true
           PasswordLength: 48
-        # Replicated so the edge stack (us-east-1) can resolve it by name.
+        # Replicated so the edge stack (us-east-1) can resolve it by name;
+        # encrypted there with the CMK's us-east-1 replica key (same alias).
         ReplicaRegions:
           - Region: us-east-1
+            KmsKeyId: ${self:custom.kmsAlias}
 
     JwtSecret:
       Type: AWS::SecretsManager::Secret
       Properties:
         Name: superstruct-user/${self:provider.stage}/jwt-secret
         Description: HS256 signing key for the API's JWTs.
+        KmsKeyId: ${self:custom.kmsAlias}
         GenerateSecretString:
           SecretStringTemplate: '{}'
           GenerateStringKey: signingKey
