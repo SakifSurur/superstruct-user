@@ -105,8 +105,8 @@ URL also works but bypasses those protections.
 | GET    | `/api/v1/security/findings` | JWT-protected; aggregated Security Hub posture (no resource identifiers)                   |
 
 The API is versioned under `/api/v1`; a breaking change gets an `/api/v2`
-prefix beside it rather than mutating `/api/v1`. The frontend renders this table as a collapsible
-"API reference" section.
+prefix beside it rather than mutating `/api/v1`. The frontend serves an
+interactive Swagger UI at `/docs` (login required).
 
 Auth internals: passwords are scrypt-hashed (`node:crypto`, per-user salt,
 constant-time compare) and never returned; registration writes the user, an

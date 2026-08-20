@@ -1,0 +1,17 @@
+---
+import Layout from '../layouts/Layout.astro';
+import SwaggerGate from '../components/SwaggerGate';
+---
+
+<Layout title="API docs — superstruct-user">
+  <main class="mx-auto w-full max-w-4xl px-4 py-12">
+    <header class="mb-8 flex items-baseline justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">API documentation</h1>
+        <p class="text-muted-foreground">Interactive Swagger UI for the user API</p>
+      </div>
+      <a href="/" class="text-sm text-muted-foreground underline-offset-4 hover:underline">← Home</a>
+    </header>
+    <SwaggerGate client:only="react" />
+  </main>
+</Layout>

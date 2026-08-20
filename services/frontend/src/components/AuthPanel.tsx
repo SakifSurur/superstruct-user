@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
   activity,
   login,
@@ -9,7 +9,6 @@ import {
   type FindingsSummary,
   type User,
 } from '../api';
-import ApiDocs from './ApiDocs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,8 +24,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-const SwaggerDocs = lazy(() => import('./SwaggerDocs'));
 
 const ACTIVITY_LABELS: Record<ActivityItem['type'], string> = {
   'user.registered': 'Account created',
@@ -48,7 +45,6 @@ export default function AuthPanel() {
   const [profile, setProfile] = useState<User | null>(null);
   const [posture, setPosture] = useState<FindingsSummary | null>(null);
   const [events, setEvents] = useState<ActivityItem[]>([]);
-  const [swaggerOpen, setSwaggerOpen] = useState(false);
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -180,28 +176,14 @@ export default function AuthPanel() {
               </>
             )}
           </CardContent>
-          <CardFooter>
+          <CardFooter className="gap-2">
+            <Button asChild>
+              <a href="/docs">API documentation</a>
+            </Button>
             <Button variant="outline" onClick={logout}>
               Log out
             </Button>
           </CardFooter>
-        </Card>
-
-        <ApiDocs />
-
-        <Card>
-          <details onToggle={(e) => setSwaggerOpen((e.target as HTMLDetailsElement).open)}>
-            <summary className="cursor-pointer px-6 font-medium">
-              Interactive API explorer (Swagger UI)
-            </summary>
-            <div className="px-6 pt-4">
-              {swaggerOpen && (
-                <Suspense fallback={<p className="text-sm text-muted-foreground">Loading Swagger UI…</p>}>
-                  <SwaggerDocs />
-                </Suspense>
-              )}
-            </div>
-          </details>
         </Card>
       </div>
     );
