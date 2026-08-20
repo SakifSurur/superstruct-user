@@ -27,6 +27,10 @@ day-2 operations and teardown. Architecture background is in the
   with `repo` + `admin:repo_hook`), stored once as a SecureString (it also
   lands in the hosting unit's Terraform state):
   `aws ssm put-parameter --name /superstruct-user/dev/github-token --type SecureString --value <PAT>`
+- **Amplify GitHub App** installed on the repository
+  (`https://github.com/apps/aws-amplify-eu-central-1/installations/new`).
+  Without it, builds fail with a misleading "Unable to assume specified IAM
+  Role" — the PAT alone is not enough; Amplify's build fetches through the App.
 
 ```sh
 npm install          # workspaces
@@ -148,6 +152,14 @@ Left behind on purpose, remove manually if wanted:
 - KMS keys sit in a mandatory 7-day `PendingDeletion` window.
 
 ## Gotchas
+
+- **The Amplify "Unable to assume specified IAM Role" build error is usually
+  not about IAM** — check, in order: the service role exists on the app, the
+  Amplify GitHub App is installed on the repo, and the repo connection is
+  healthy. All three produce the identical message.
+- **npm inside a workspace resolves the project root via the nearest
+  lockfile** — any `npm install` meant to land in a sub-directory (like the
+  Amplify compute bundle) must pass `--prefix .`.
 
 - **CLOUDFRONT-scoped WAF web ACLs only exist in us-east-1** — hence
   `30-edge`'s `region.hcl`. Units pin a provider region that way; remote state

@@ -6,33 +6,13 @@ data "aws_ssm_parameter" "github_token" {
   name = "/${var.project}/${var.environment}/github-token"
 }
 
-# Service role Amplify assumes for SSR compute deployment and logging.
-resource "aws_iam_role" "amplify" {
-  name = "${var.project}-${var.environment}-amplify"
+module "hosting" {
+  source = "../../modules/terraform-aws-amplify-hosting"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "amplify.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "amplify" {
-  role       = aws_iam_role.amplify.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess-Amplify"
-}
-
-# WEB_COMPUTE + git-based builds: Amplify builds the Astro SSR bundle itself on
-# push to main (manual deployments do not support SSR compute bundles).
-resource "aws_amplify_app" "frontend" {
-  name                 = "${var.project}-${var.environment}"
-  platform             = "WEB_COMPUTE"
-  repository           = var.repository_url
-  access_token         = data.aws_ssm_parameter.github_token.value
-  iam_service_role_arn = aws_iam_role.amplify.arn
+  name           = "${var.project}-${var.environment}"
+  repository_url = var.repository_url
+  access_token   = data.aws_ssm_parameter.github_token.value
+  framework      = "Astro"
 
   environment_variables = {
     _CUSTOM_IMAGE             = "amplify:al2023"
@@ -54,9 +34,9 @@ resource "aws_amplify_app" "frontend" {
                 - npm run build
                 - ASTRO_V=$(node -p "require('astro/package.json').version")
                 - REACT_V=$(node -p "require('react/package.json').version")
-                # npm init first — without a package.json here, npm would walk
-                # up and install into the workspace root instead.
-                - cd .amplify-hosting/compute/default && npm init -y > /dev/null && npm install --omit=dev "astro@$${ASTRO_V}" "react@$${REACT_V}" "react-dom@$${REACT_V}"
+                # --prefix . is load-bearing — npm otherwise resolves the
+                # workspace root via the nearest lockfile and installs there.
+                - cd .amplify-hosting/compute/default && npm init -y > /dev/null && npm install --prefix . --omit=dev "astro@$${ASTRO_V}" "react@$${REACT_V}" "react-dom@$${REACT_V}"
           artifacts:
             baseDirectory: .amplify-hosting
             files:
@@ -64,22 +44,35 @@ resource "aws_amplify_app" "frontend" {
   EOT
 }
 
-resource "aws_amplify_branch" "main" {
-  app_id            = aws_amplify_app.frontend.id
-  branch_name       = "main"
-  enable_auto_build = true
-  framework         = "Astro"
-  stage             = "PRODUCTION"
+# Resources predate the module extraction — keep their state addresses.
+moved {
+  from = aws_iam_role.amplify
+  to   = module.hosting.aws_iam_role.this
+}
+
+moved {
+  from = aws_iam_role_policy_attachment.amplify
+  to   = module.hosting.aws_iam_role_policy_attachment.this
+}
+
+moved {
+  from = aws_amplify_app.frontend
+  to   = module.hosting.aws_amplify_app.this
+}
+
+moved {
+  from = aws_amplify_branch.main
+  to   = module.hosting.aws_amplify_branch.this
 }
 
 resource "aws_ssm_parameter" "app_id" {
   name  = "/${var.project}/${var.environment}/frontend/app-id"
   type  = "String"
-  value = aws_amplify_app.frontend.id
+  value = module.hosting.app_id
 }
 
 resource "aws_ssm_parameter" "app_url" {
   name  = "/${var.project}/${var.environment}/frontend/app-url"
   type  = "String"
-  value = "https://${aws_amplify_branch.main.branch_name}.${aws_amplify_app.frontend.default_domain}"
+  value = module.hosting.branch_url
 }

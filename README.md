@@ -31,6 +31,8 @@ resources-only is Terraform + Terragrunt:
 ```
 infrastructure/
   root.hcl                  # S3 remote state (auto-bootstrapped) + generated provider
+  modules/
+    terraform-aws-amplify-hosting/  # registry-shaped module (git-connected SSR hosting)
   dev/                      # Environment - (e.g. dev, staging, prod)
     env.hcl                 # region, account ID — single source of truth
     00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
@@ -143,9 +145,10 @@ Pushes to `main` deploy automatically via GitHub Actions
 sequential deploy of the infrastructure and the API. Auth is GitHub OIDC
 — the workflow assumes `superstruct-user-github-actions-deploy`
 (provisioned in `infrastructure/dev/10-github-oidc-provider` and
-`11-github-actions-role`), whose trust policy only accepts
-`repo:SakifSurur/superstruct-user:ref:refs/heads/main`. No AWS keys are stored
-in GitHub.
+`11-github-actions-role`), whose trust policy only accepts this repository's
+`main` branch via GitHub's immutable-reference subject (account and repo IDs
+pinned). No AWS keys are stored in GitHub. The frontend deploys separately:
+Amplify builds it on the same push.
 
 ## Day-to-day commands
 
