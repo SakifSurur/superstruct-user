@@ -59,9 +59,10 @@ jobs:
           chmod +x /usr/local/bin/terragrunt
 
       # All Terragrunt-managed infrastructure: KMS, Security Hub, OIDC,
-      # Amplify hosting, CloudFront + WAF edge. Steady-state ordering is safe;
-      # a fresh account needs 40-frontend-hosting and the API stack before
-      # 30-edge (see README).
+      # Amplify hosting, CloudFront + WAF edge, and the SPA build+publish
+      # (41-frontend-deploy re-publishes only when the frontend source or the
+      # API URL changed). Steady-state ordering is safe; a fresh account needs
+      # 40-frontend-hosting and the API stack before 30-edge (see README).
       # The state bucket already exists; a fresh account bootstraps it once
       # with: terragrunt run --all --backend-bootstrap apply
       - name: Apply infrastructure (Terragrunt)
@@ -72,6 +73,3 @@ jobs:
 
       - name: Deploy API
         run: npm run deploy:api
-
-      - name: Build and publish SPA to Amplify
-        run: ./services/frontend/deploy.sh dev

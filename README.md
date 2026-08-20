@@ -41,6 +41,8 @@ infrastructure/
     21-kms-replica/         # us-east-1 replica key
     30-edge/                # CloudFront + WAFv2 in front of the API (us-east-1¹)
     40-frontend-hosting/    # Amplify Hosting app + branch
+    41-frontend-deploy/     # SPA build + Amplify manual deployment (publishes
+                            # when the frontend source or API URL changes)
 ```
 
 ¹ CloudFront-scoped WAF web ACLs can only live in us-east-1; a unit pins its
@@ -50,19 +52,24 @@ Run with `terragrunt plan` / `terragrunt apply` inside a unit directory, or
 `terragrunt run-all apply` from `infrastructure/dev` (`--backend-bootstrap`
 on first ever run).
 
-**Cross-tool contract is SSM Parameter Store**: `40-frontend-hosting`
-publishes `/superstruct-user/<stage>/frontend/app-id|app-url` (consumed by
-`deploy.sh` and the API's CORS config); `30-edge` publishes
-`.../edge/api-url` (consumed by `deploy.sh` as `VITE_API_URL`); `30-edge`
-itself reads the user-api stack's `ApiDomain` output and the origin-verify
-secret's us-east-1 replica.
+**Cross-tool contract**: within Terragrunt, units wire together with
+`dependency` blocks (`41-frontend-deploy` consumes `40-frontend-hosting`'s
+app id and `30-edge`'s API URL). Across tools, SSM Parameter Store is the
+seam: `40-frontend-hosting` publishes
+`/superstruct-user/<stage>/frontend/app-url` (read by the API's CORS config)
+and `30-edge` publishes `.../edge/api-url`; `30-edge` itself reads the
+user-api stack's `ApiDomain` output and the origin-verify secret's us-east-1
+replica.
 
 **Fresh-account bootstrap order**: `40-frontend-hosting` → `user-api` (osls)
-→ `30-edge` → `deploy.sh`. Steady state has no ordering constraints.
+→ `30-edge` → `41-frontend-deploy`. Steady state has no ordering constraints
+(`run --all` resolves the dependency graph).
 
-The repo's SPA is pushed with Amplify's manual-deployment API —
-`services/frontend/deploy.sh` builds against the SSM-published API URL,
-uploads `dist/`, and waits for the job to finish.
+The SPA is published by `41-frontend-deploy` via Amplify's manual-deployment
+API (the repo has no git connection): a `terraform_data` resource hashes the
+frontend source and re-runs the vite build + upload only when it (or the API
+URL) changes. Force a re-publish with
+`terragrunt apply -replace=terraform_data.publish` in that unit.
 
 ## PII safety measures
 
@@ -84,10 +91,9 @@ uploads `dist/`, and waits for the job to finish.
 ## Deploy
 
 ```sh
-npm install
-(cd infrastructure/dev && terragrunt run-all apply)   # 1. all infra units
+npm install                                           # SPA build deps for 41-frontend-deploy
+(cd infrastructure/dev && terragrunt run --all apply) # 1. all infra units incl. SPA publish
 npm run deploy:api                                    # 2. API stack (osls)
-npm run deploy:frontend                               # 3. build SPA + push to Amplify
 ```
 
 Use the CloudFront URL from SSM (`/superstruct-user/dev/edge/api-url`) — the

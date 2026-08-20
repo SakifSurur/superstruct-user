@@ -3,13 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "React SPA for the user API. Hosting is Terragrunt-managed (infrastructure/dev/40-frontend-hosting); deploy.sh builds and publishes via Amplify manual deployments.",
+  "description": "React SPA for the user API. Hosting and publishing are Terragrunt-managed (infrastructure/dev/40-frontend-hosting and 41-frontend-deploy).",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
-    "deploy": "./deploy.sh"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "react": "^19.2.8",
