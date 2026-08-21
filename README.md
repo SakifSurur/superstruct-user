@@ -38,8 +38,7 @@ infrastructure/
     00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
     10-github-oidc-provider/# GitHub Actions OIDC provider
     11-github-actions-role/ # CI deploy role (trust: this repo's main only)
-    20-kms/                 # app CMK (multi-Region primary, secrets encryption)
-    21-kms-replica/         # us-east-1 replica key
+    20-kms/                 # app CMK (secrets encryption) + alias SSM parameter
     30-edge/                # CloudFront + WAFv2 in front of the API (us-east-1¹)
     40-frontend-hosting/    # Amplify Hosting app (git-connected, builds on push)
 ```

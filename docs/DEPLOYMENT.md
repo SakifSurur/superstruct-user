@@ -9,7 +9,7 @@ day-2 operations and teardown. Architecture background is in the
 | Piece | Tool | Region |
 | --- | --- | --- |
 | Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
-| Security Hub CSPM, GitHub OIDC, KMS CMK (+ us-east-1 replica) | Terragrunt (`infrastructure/dev/00–21`) | eu-central-1 / us-east-1 |
+| Security Hub CSPM, GitHub OIDC, KMS CMK | Terragrunt (`infrastructure/dev/00–20`) | eu-central-1 |
 | API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-edge`) | us-east-1 |
 | Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-frontend-hosting`) | eu-central-1 |
@@ -47,8 +47,7 @@ CORS reads the Amplify URL from SSM.
 cd infrastructure/dev
 
 # 1. State bucket + every unit that does not need the API stack yet.
-for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role \
-            20-kms 21-kms-replica; do
+for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role 20-kms; do
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
@@ -127,8 +126,7 @@ npx osls logs -f login                         # tail a Lambda (in services/user
 Order matters — **destroy the API stack before the KMS units**. CloudFormation
 re-resolves the `{{resolve:secretsmanager}}` references on *every* operation,
 including delete; with the CMK already pending deletion the stack delete fails
-(recovery: `aws kms cancel-key-deletion` + `enable-key` in both regions, retry,
-re-schedule).
+(recovery: `aws kms cancel-key-deletion` + `enable-key`, retry, re-schedule).
 
 ```sh
 # 1. Hosting and edge first (30-edge reads the API stack, so it must go while

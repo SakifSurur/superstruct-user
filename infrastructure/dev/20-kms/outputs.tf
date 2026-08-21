@@ -1,6 +1,6 @@
 output "key_arn" {
-  description = "ARN of the us-east-1 replica key."
-  value       = module.replica.key_arn
+  description = "ARN of the application CMK."
+  value       = module.kms.key_arn
 }
 
 output "secrets_key_alias_parameter" {

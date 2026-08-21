@@ -9,9 +9,22 @@ variable "repository_url" {
 }
 
 variable "access_token" {
-  description = "Git access token used to read repository metadata and install the build webhook. Builds authenticate via the Amplify GitHub App, not this token."
+  description = "Git access token used to read repository metadata and install the build webhook. Builds authenticate via the Amplify GitHub App, not this token. Ignored when access_token_ssm_parameter is set."
   type        = string
   sensitive   = true
+  default     = null
+}
+
+variable "access_token_ssm_parameter" {
+  description = "Name of a SecureString SSM parameter holding the Git access token; takes precedence over access_token."
+  type        = string
+  default     = null
+}
+
+variable "ssm_contract_prefix" {
+  description = "When set, publishes the app id and branch URL as /<prefix>/app-id and /<prefix>/app-url SSM parameters for cross-tool consumers."
+  type        = string
+  default     = null
 }
 
 variable "build_spec" {

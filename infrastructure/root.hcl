@@ -5,8 +5,8 @@ locals {
   environment    = local.env.environment
   aws_account_id = local.env.aws_account_id
 
-  # A unit pins its provider region with a region.hcl next to its terragrunt.hcl;
-  # remote state always stays in the environment's home region.
+  # A unit pins its provider region with a region.hcl next to its terragrunt.hcl
+  # (e.g. 30-edge needs us-east-1); remote state stays in the home region.
   aws_region = try(
     read_terragrunt_config("${get_terragrunt_dir()}/region.hcl").locals.aws_region,
     local.env.aws_region,
