@@ -42,6 +42,9 @@ const loginSchema = z.object({
 
 const STATS_KEY = 'stats#users';
 const emailKey = (email: string) => `email#${email}`;
+// Storage key prefix only — JWT subjects, audit events, and API responses
+// carry the bare UUID.
+const userKey = (userId: string) => `user#${userId}`;
 
 // Unknown emails are verified against this so both login failure paths take equal time.
 const DUMMY_HASH =
@@ -49,9 +52,12 @@ const DUMMY_HASH =
 
 const toPublic = (user: UserRecord) => omit(user, ['passwordHash']);
 
-const loadUser = async (id: string): Promise<UserRecord | undefined> => {
-  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { id } }));
-  return result.Item ? userRecordSchema.parse(result.Item) : undefined;
+const loadUser = async (userId: string): Promise<UserRecord | undefined> => {
+  const result = await ddb.send(
+    new GetCommand({ TableName: USERS_TABLE, Key: { id: userKey(userId) } }),
+  );
+  if (!result.Item) return undefined;
+  return { ...userRecordSchema.parse(result.Item), id: userId };
 };
 
 export const register = withErrorHandling(async (event) => {
@@ -74,7 +80,7 @@ export const register = withErrorHandling(async (event) => {
           {
             Put: {
               TableName: USERS_TABLE,
-              Item: user,
+              Item: { ...user, id: userKey(user.id) },
               ConditionExpression: 'attribute_not_exists(id)',
             },
           },

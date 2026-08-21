@@ -163,9 +163,12 @@ three item kinds, distinguished by key prefix:
 
 | `id`                | Item kind          | Attributes                                                |
 | ------------------- | ------------------ | --------------------------------------------------------- |
-| `<uuid>`            | user record        | email, firstName, lastName, passwordHash, createdAt       |
-| `email#<email>`     | uniqueness marker  | userId (points at the user record)                        |
+| `user#<uuid>`       | user record        | email, firstName, lastName, passwordHash, createdAt       |
+| `email#<email>`     | uniqueness marker  | userId (bare uuid, points at the user record)             |
 | `stats#users`       | counter singleton  | userCount (`ADD`-incremented)                             |
+
+The `user#` prefix exists only at the storage layer — JWT subjects, audit
+events, and API responses carry the bare uuid.
 
 The marker is what makes email uniqueness race-free: DynamoDB conditions can
 only guard the item being written, so the email must *be* an item.

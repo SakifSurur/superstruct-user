@@ -31,6 +31,13 @@ export const openapiSpec = {
         type: 'object',
         properties: { message: { type: 'string' } },
       },
+      // Validation errors report the first failing field as `"<field>" <problem>`.
+      ValidationError: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: '"email" must be a valid email address' },
+        },
+      },
       LoginResult: {
         type: 'object',
         properties: {
@@ -109,8 +116,11 @@ export const openapiSpec = {
             content: { 'application/json': { schema: { $ref: '#/components/schemas/User' } } },
           },
           '400': {
-            description: 'Validation error',
-            content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
+            description:
+              'Validation error — the first failing field, e.g. `"email" must be a valid email address`, `"password" must be at least 8 characters`, `"firstName" is required`',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/ValidationError' } },
+            },
           },
           '409': {
             description: 'Email already registered',
@@ -143,6 +153,13 @@ export const openapiSpec = {
             description: 'Authenticated',
             content: {
               'application/json': { schema: { $ref: '#/components/schemas/LoginResult' } },
+            },
+          },
+          '400': {
+            description:
+              'Validation error — the first failing field, e.g. `"email" is required`, `"password" is required`',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/ValidationError' } },
             },
           },
           '401': {

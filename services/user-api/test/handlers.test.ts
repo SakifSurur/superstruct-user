@@ -54,6 +54,8 @@ describe('POST /register', () => {
     expect(calls).toHaveLength(1);
     const items = calls[0]!.args[0].input.TransactItems!;
     expect(items).toHaveLength(3);
+    // user rows are stored under a prefixed key
+    expect(items[0]!.Put!.Item!.id).toMatch(/^user#/);
     // email normalized before it becomes the uniqueness key
     expect(items[0]!.Put!.Item!.email).toBe('jane@example.com');
     expect(items[1]!.Put!.Item!.id).toBe('email#jane@example.com');
@@ -112,8 +114,8 @@ describe('POST /register', () => {
 
 describe('POST /login', () => {
   const seedUser = async () => {
-    const user = {
-      id: 'u1',
+    const stored = {
+      id: 'user#u1',
       email: 'jane@example.com',
       firstName: 'Jane',
       lastName: 'Doe',
@@ -123,7 +125,7 @@ describe('POST /login', () => {
     ddb
       .on(GetCommand, { Key: { id: 'email#jane@example.com' } })
       .resolves({ Item: { id: 'email#jane@example.com', userId: 'u1' } });
-    ddb.on(GetCommand, { Key: { id: 'u1' } }).resolves({ Item: user });
+    ddb.on(GetCommand, { Key: { id: 'user#u1' } }).resolves({ Item: stored });
   };
 
   it('returns a token and the public profile on valid credentials', async () => {
@@ -186,8 +188,8 @@ describe('POST /login', () => {
 });
 
 describe('GET /me', () => {
-  const user = {
-    id: 'u1',
+  const stored = {
+    id: 'user#u1',
     email: 'jane@example.com',
     firstName: 'Jane',
     lastName: 'Doe',
@@ -196,7 +198,7 @@ describe('GET /me', () => {
   };
 
   it('returns the profile for a valid token, without the password hash', async () => {
-    ddb.on(GetCommand, { Key: { id: 'u1' } }).resolves({ Item: user });
+    ddb.on(GetCommand, { Key: { id: 'user#u1' } }).resolves({ Item: stored });
     const result = await invoke(me, authedEvent('u1'));
 
     expect(result.statusCode).toBe(200);
