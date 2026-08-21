@@ -75,7 +75,16 @@ aws amplify start-job --app-id "$APP_ID" --branch-name main --job-type RELEASE -
 
 Notes:
 
-- `--backend-bootstrap` is only needed once, to create the state bucket.
+- `--backend-bootstrap` is only needed once, to create the state bucket. The
+  bucket creation asks for confirmation — add `--non-interactive` when running
+  unattended (without a TTY the prompt fails with `ERROR EOF`).
+- `00-security-hub` may fail with a 3-minute timeout on the FSBP/NIST
+  standards-subscription creates while they sit in `PENDING` (observed up to
+  ~15 min). Do **not** re-create: wait until
+  `aws securityhub get-enabled-standards` shows `READY`, then
+  `terragrunt run -- untaint` both
+  `module.security_hub.aws_securityhub_standards_subscription.this[...]`
+  addresses and re-apply.
 - Step 3's CloudFront distribution takes 5–10 minutes to create; the first
   Amplify build takes a few minutes more.
 - If you ran `deploy:api` *before* the KMS units ever existed, run it again
