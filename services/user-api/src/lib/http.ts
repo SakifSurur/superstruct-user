@@ -30,10 +30,14 @@ export class HttpError extends Error {
   }
 }
 
-export const parseBody = <T>(event: APIGatewayProxyEventV2): T => {
+// Returns unknown on purpose: callers validate the shape with a zod schema
+// (see parseBodyWith in validate.ts) rather than asserting it.
+export const parseBody = (event: APIGatewayProxyEventV2): unknown => {
   if (!event.body) throw new HttpError(400, 'Request body is required');
   try {
-    return JSON.parse(event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body) as T;
+    return JSON.parse(
+      event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body,
+    );
   } catch {
     throw new HttpError(400, 'Request body must be valid JSON');
   }

@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { GetCommand, TransactWriteCommand } from '@aws-sdk/lib-dynamodb';
 import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
+import { omit } from 'es-toolkit';
+import { z } from 'zod';
 import { audit } from '../lib/audit';
 import { ddb, USERS_TABLE } from '../lib/dynamo';
-import { HttpError, json, parseBody, withErrorHandling } from '../lib/http';
+import { HttpError, json, withErrorHandling } from '../lib/http';
+import { parseBodyWith } from '../lib/validate';
 import {
   TOKEN_TTL_SECONDS,
   hashPassword,
@@ -12,16 +15,30 @@ import {
   verifyPassword,
 } from '../lib/auth';
 
-interface UserRecord {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  passwordHash: string;
-  createdAt: string;
-}
+const userRecordSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  passwordHash: z.string(),
+  createdAt: z.string(),
+});
+type UserRecord = z.infer<typeof userRecordSchema>;
 
-type PublicUser = Omit<UserRecord, 'passwordHash'>;
+const emailMarkerSchema = z.object({ userId: z.string() });
+const statsRecordSchema = z.object({ userCount: z.number() });
+
+const registerSchema = z.object({
+  email: z.string().trim().toLowerCase().pipe(z.email('must be a valid email address')),
+  password: z.string('must be at least 8 characters').min(8, 'must be at least 8 characters'),
+  firstName: z.string('is required').trim().min(1, 'is required'),
+  lastName: z.string('is required').trim().min(1, 'is required'),
+});
+
+const loginSchema = z.object({
+  email: z.string('is required').trim().toLowerCase().min(1, 'is required'),
+  password: z.string('is required').min(1, 'is required'),
+});
 
 const STATS_KEY = 'stats#users';
 const emailKey = (email: string) => `email#${email}`;
@@ -30,43 +47,21 @@ const emailKey = (email: string) => `email#${email}`;
 const DUMMY_HASH =
   'p1DhpzSuXQyIKZzXQGSXUA==:kY8W0Zg2m2wJt0R1nJ0S3v9m5m5nUKq0m8h6b3n0T4t9wS3v9m5m5nUKq0m8h6b3n0T4t9wS3v9m5m5nUKq0m8h6bw==';
 
-const toPublic = (user: UserRecord): PublicUser => ({
-  id: user.id,
-  email: user.email,
-  firstName: user.firstName,
-  lastName: user.lastName,
-  createdAt: user.createdAt,
-});
+const toPublic = (user: UserRecord) => omit(user, ['passwordHash']);
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-interface RegisterInput {
-  email?: string;
-  password?: string;
-  firstName?: string;
-  lastName?: string;
-}
+const loadUser = async (id: string): Promise<UserRecord | undefined> => {
+  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { id } }));
+  return result.Item ? userRecordSchema.parse(result.Item) : undefined;
+};
 
 export const register = withErrorHandling(async (event) => {
-  const input = parseBody<RegisterInput>(event);
-  const email = input.email?.trim().toLowerCase();
-  if (!email || !EMAIL_RE.test(email)) {
-    throw new HttpError(400, '"email" must be a valid email address');
-  }
-  if (typeof input.password !== 'string' || input.password.length < 8) {
-    throw new HttpError(400, '"password" must be at least 8 characters');
-  }
-  const firstName = input.firstName?.trim();
-  const lastName = input.lastName?.trim();
-  if (!firstName || !lastName) {
-    throw new HttpError(400, '"firstName" and "lastName" are required');
-  }
+  const input = parseBodyWith(registerSchema, event);
 
   const user: UserRecord = {
     id: randomUUID(),
-    email,
-    firstName,
-    lastName,
+    email: input.email,
+    firstName: input.firstName,
+    lastName: input.lastName,
     passwordHash: await hashPassword(input.password),
     createdAt: new Date().toISOString(),
   };
@@ -86,7 +81,7 @@ export const register = withErrorHandling(async (event) => {
           {
             Put: {
               TableName: USERS_TABLE,
-              Item: { id: emailKey(email), userId: user.id },
+              Item: { id: emailKey(input.email), userId: user.id },
               ConditionExpression: 'attribute_not_exists(id)',
             },
           },
@@ -116,33 +111,28 @@ export const register = withErrorHandling(async (event) => {
   return json(201, toPublic(user));
 });
 
-interface LoginInput {
-  email?: string;
-  password?: string;
-}
-
 export const login = withErrorHandling(async (event) => {
-  const input = parseBody<LoginInput>(event);
-  const email = input.email?.trim().toLowerCase();
-  if (!email || typeof input.password !== 'string') {
-    throw new HttpError(400, '"email" and "password" are required');
-  }
+  const input = parseBodyWith(loginSchema, event);
 
-  const marker = await ddb.send(
-    new GetCommand({ TableName: USERS_TABLE, Key: { id: emailKey(email) }, ConsistentRead: true }),
+  const result = await ddb.send(
+    new GetCommand({
+      TableName: USERS_TABLE,
+      Key: { id: emailKey(input.email) },
+      ConsistentRead: true,
+    }),
   );
-  const userId = (marker.Item as { userId?: string } | undefined)?.userId;
+  const marker = emailMarkerSchema.safeParse(result.Item);
 
-  if (!userId) {
+  if (!marker.success) {
     await verifyPassword(input.password, DUMMY_HASH);
-    await audit('user.login.failed', { email, reason: 'unknown_email' }, event);
+    await audit('user.login.failed', { email: input.email, reason: 'unknown_email' }, event);
     throw new HttpError(401, 'Invalid email or password');
   }
 
-  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { id: userId } }));
-  const user = result.Item as UserRecord | undefined;
+  const { userId } = marker.data;
+  const user = await loadUser(userId);
   if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
-    await audit('user.login.failed', { userId, email, reason: 'wrong_password' }, event);
+    await audit('user.login.failed', { userId, email: input.email, reason: 'wrong_password' }, event);
     throw new HttpError(401, 'Invalid email or password');
   }
 
@@ -159,8 +149,7 @@ export const login = withErrorHandling(async (event) => {
 export const me = withErrorHandling(async (event) => {
   const { userId } = requireAuth(event);
 
-  const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { id: userId } }));
-  const user = result.Item as UserRecord | undefined;
+  const user = await loadUser(userId);
   if (!user) throw new HttpError(404, 'User no longer exists');
 
   return json(200, toPublic(user));
@@ -170,7 +159,7 @@ export const stats = withErrorHandling(async () => {
   const result = await ddb.send(
     new GetCommand({ TableName: USERS_TABLE, Key: { id: STATS_KEY } }),
   );
-  const count = (result.Item as { userCount?: number } | undefined)?.userCount ?? 0;
+  const record = statsRecordSchema.safeParse(result.Item);
 
-  return json(200, { totalUsers: count });
+  return json(200, { totalUsers: record.success ? record.data.userCount : 0 });
 });

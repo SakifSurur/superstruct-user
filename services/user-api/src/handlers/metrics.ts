@@ -1,4 +1,5 @@
 import { CloudWatchClient, GetMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { keyBy, sum, zip } from 'es-toolkit';
 import { json, withErrorHandling } from '../lib/http';
 import { requireAuth } from '../lib/auth';
 import { traced } from '../lib/tracing';
@@ -74,16 +75,15 @@ export const metrics = withErrorHandling(async (event) => {
     }),
   );
 
-  const byId = new Map(result.MetricDataResults?.map((r) => [r.Id, r]) ?? []);
+  const byId = keyBy(result.MetricDataResults ?? [], (r) => r.Id ?? '');
   // Buckets with traffic exist per metric; align all series on the request
   // series' timestamps, defaulting gaps to zero.
-  const requestsResult = byId.get('requests');
-  const timestamps = (requestsResult?.Timestamps ?? []).map((t) => t.toISOString());
+  const timestamps = (byId.requests?.Timestamps ?? []).map((t) => t.toISOString());
 
   const aligned = (id: string): number[] => {
-    const r = byId.get(id);
+    const r = byId[id];
     const index = new Map(
-      (r?.Timestamps ?? []).map((t, i) => [t.toISOString(), r?.Values?.[i] ?? 0]),
+      zip(r?.Timestamps ?? [], r?.Values ?? []).map(([t, v]) => [t?.toISOString(), v ?? 0]),
     );
     return timestamps.map((t) => index.get(t) ?? 0);
   };
@@ -96,7 +96,6 @@ export const metrics = withErrorHandling(async (event) => {
     lambdaErrors: aligned('lambdaErrors'),
   };
 
-  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
   const response: MetricsResponse = {
     windowHours: HOURS,
     timestamps,

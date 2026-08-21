@@ -5,16 +5,15 @@ import {
   scrypt as scryptCallback,
   timingSafeEqual,
 } from 'node:crypto';
-import { promisify } from 'node:util';
 import { SignJWT } from 'jose';
-import type { APIGatewayProxyEventV2, APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
+import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { z } from 'zod';
 import { HttpError } from './http';
 
-const scrypt = promisify(scryptCallback) as (
-  password: string,
-  salt: Buffer,
-  keylen: number,
-) => Promise<Buffer>;
+const scrypt = (password: string, salt: Buffer, keylen: number): Promise<Buffer> =>
+  new Promise((resolve, reject) =>
+    scryptCallback(password, salt, keylen, (error, key) => (error ? reject(error) : resolve(key))),
+  );
 
 const privateKeyPem = process.env.JWT_PRIVATE_KEY;
 if (!privateKeyPem) {
@@ -55,12 +54,14 @@ export const signToken = (userId: string, email: string): Promise<string> =>
 
 // Token verification happens in API Gateway's native JWT authorizer; the
 // handler only reads the validated claims it forwarded.
+const authorizedContextSchema = z.object({
+  authorizer: z.object({ jwt: z.object({ claims: z.object({ sub: z.string().min(1) }) }) }),
+});
+
 export const requireAuth = (event: APIGatewayProxyEventV2): { userId: string } => {
-  const claims = (event as APIGatewayProxyEventV2WithJWTAuthorizer).requestContext.authorizer?.jwt
-    ?.claims;
-  const sub = claims?.sub;
-  if (typeof sub !== 'string' || sub.length === 0) {
+  const context = authorizedContextSchema.safeParse(event.requestContext);
+  if (!context.success) {
     throw new HttpError(401, 'Missing authorizer claims');
   }
-  return { userId: sub };
+  return { userId: context.data.authorizer.jwt.claims.sub };
 };
