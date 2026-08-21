@@ -212,7 +212,10 @@ function Panel() {
             )}
           </CardContent>
           <CardFooter className="gap-2">
-            <a href="/docs" className={buttonVariants()}>
+            <a href="/metrics" className={buttonVariants()}>
+              Metrics
+            </a>
+            <a href="/docs" className={buttonVariants({ variant: 'outline' })}>
               API documentation
             </a>
             <Button variant="outline" onClick={logout}>

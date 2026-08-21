@@ -9,7 +9,7 @@ locals {
   env = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
 
   api_stack = "superstruct-user-api-${local.env.environment}"
-  functions = ["register", "login", "me", "stats", "securityFindings", "myActivity", "jwks", "auditWriter"]
+  functions = ["register", "login", "me", "stats", "securityFindings", "myActivity", "metrics", "auditWriter"]
 }
 
 terraform {
@@ -20,7 +20,10 @@ inputs = {
   name           = "${local.env.project}-${local.env.environment}"
   api_stack_name = local.api_stack
 
-  function_names = [for f in local.functions : "${local.api_stack}-${f}"]
+  function_names = concat(
+    [for f in local.functions : "${local.api_stack}-${f}"],
+    ["superstruct-user-jwks-${local.env.environment}-jwks", "superstruct-user-jwks-${local.env.environment}-openidConfiguration"],
+  )
 
   dynamodb_table_names = [
     "${local.api_stack}-users",

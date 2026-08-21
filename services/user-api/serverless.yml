@@ -69,6 +69,7 @@ provider:
         - Effect: Allow
           Action:
             - securityhub:GetFindings
+            - cloudwatch:GetMetricData
           Resource: '*'
         - Effect: Allow
           Action:
@@ -137,6 +138,14 @@ functions:
       - httpApi:
           method: GET
           path: /api/v1/me/activity
+          authorizer:
+            name: jwtAuth
+  metrics:
+    handler: src/handlers/metrics.metrics
+    events:
+      - httpApi:
+          method: GET
+          path: /api/v1/metrics
           authorizer:
             name: jwtAuth
   # Invoked by AuditToDynamoRule, not by HTTP.

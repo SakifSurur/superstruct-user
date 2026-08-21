@@ -59,3 +59,22 @@ export interface ActivityItem {
 
 export const activity = (token: string): Promise<{ items: ActivityItem[] }> =>
   request('/api/v1/me/activity', { headers: { authorization: `Bearer ${token}` } });
+
+export interface MetricsResponse {
+  windowHours: number;
+  timestamps: string[];
+  series: {
+    requests: number[];
+    errors4xx: number[];
+    errors5xx: number[];
+    latencyP99Ms: number[];
+    lambdaErrors: number[];
+  };
+  totals: { requests: number; errors4xx: number; errors5xx: number; lambdaErrors: number };
+  fetchedAt: string;
+}
+
+export const metrics = (token: string): Promise<MetricsResponse> =>
+  request('/api/v1/metrics', { headers: { authorization: `Bearer ${token}` } });
+
+export const stats = (): Promise<{ totalUsers: number }> => request('/api/v1/stats');

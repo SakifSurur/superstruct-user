@@ -16,6 +16,7 @@
     "logs": "osls logs"
   },
   "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.1115.0",
     "@aws-sdk/client-dynamodb": "^3.750.0",
     "@aws-sdk/client-eventbridge": "^3.1114.0",
     "@aws-sdk/client-securityhub": "^3.1114.0",
