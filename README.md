@@ -50,19 +50,20 @@ infrastructure/
     terraform-aws-cloudfront-waf/   # CloudFront + WAF edge for an HTTPS origin
     terraform-aws-jwt-signing-key/  # RS256 keypair in Secrets Manager
     terraform-aws-security-hub/     # Security Hub CSPM + control disablements
-  dev/                      # Environment - (e.g. dev, staging, prod)
-    env.hcl                 # region, account ID — single source of truth
-    00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53);
-                            # unfixable controls disabled in code, with reasons
-    05-account-baseline/    # account hardening: default-SG rules removed, EBS
-                            # snapshot + SSM document public sharing blocked
-    10-github-oidc-provider/# GitHub Actions OIDC provider
-    11-github-actions-role/ # CI deploy role (trust: this repo's main only)
-    20-kms/                 # app CMK (secrets encryption)
-    22-jwt-signing-key/     # RS256 keypair for JWTs (private key in Secrets Manager)
-    30-cloudfront/          # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
-    40-amplify/             # Amplify Hosting app (git-connected, builds on push)
-    50-monitoring/          # CloudWatch alarms (SNS) + dashboard
+  environments/
+    dev/                    # per-environment tree (staging/prod would sit beside it)
+      env.hcl                 # ALL environment config — the single source of truth
+      00-security-hub/        # Security Hub CSPM (FSBP + NIST 800-53);
+                              # unfixable controls disabled in code, with reasons
+      05-account-baseline/    # account hardening: default-SG rules removed, EBS
+                              # snapshot + SSM document public sharing blocked
+      10-github-oidc-provider/# GitHub Actions OIDC provider
+      11-github-actions-role/ # CI deploy role (trust: this repo's main only)
+      20-kms/                 # app CMK (secrets encryption)
+      22-jwt-signing-key/     # RS256 keypair for JWTs (private key in Secrets Manager)
+      30-cloudfront/          # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
+      40-amplify/             # Amplify Hosting app (git-connected, builds on push)
+      50-monitoring/          # CloudWatch alarms (SNS) + dashboard
 ```
 
 ¹ CloudFront-scoped WAF web ACLs can only live in us-east-1; a unit pins its
@@ -96,7 +97,7 @@ Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
   handlers never log request bodies.
 - **Detection** — GuardDuty (org-managed; incl. Lambda network logs, S3 data
   events) plus self-managed Security Hub CSPM (FSBP + NIST 800-53 r5) from
-  `infrastructure/dev/00-security-hub`; controls that cannot be remediated
+  `infrastructure/environments/dev/00-security-hub`; controls that cannot be remediated
   from this account are disabled there in code with auditable reasons.
 - **Account hardening** — `05-account-baseline` removes the default security
   group's rules and blocks public sharing of EBS snapshots and SSM documents.
@@ -107,7 +108,7 @@ Steady state (everything already bootstrapped):
 
 ```sh
 npm install
-(cd infrastructure/dev && terragrunt run --all apply)   # all infra units
+(cd infrastructure/environments/dev && terragrunt run --all apply)   # all infra units
 npm run deploy:api                                      # API stack (osls)
 git push                                                # Amplify builds the frontend
 ```
@@ -137,7 +138,7 @@ Auth internals: passwords are scrypt-hashed (`node:crypto`, per-user salt,
 constant-time compare) and never returned; registration writes the user, an
 `email#<email>` uniqueness marker, and the stats counter in one DynamoDB
 transaction, so duplicate emails are rejected race-free (409). JWTs are signed
-RS256 (`kid` header) with a keypair from `infrastructure/dev/22-jwt-signing-key`.
+RS256 (`kid` header) with a keypair from `infrastructure/environments/dev/22-jwt-signing-key`.
 Protected routes use API Gateway's **native JWT authorizer**: it validates
 signature, issuer, audience, and expiry against the standalone `jwks-api`
 (the issuer, serving OIDC discovery + JWKS) before the Lambda runs; handlers
@@ -184,7 +185,7 @@ Pushes to `main` deploy automatically via GitHub Actions
 (`.github/workflows/deploy.yml`): checks (lint, typecheck, tests) gate a
 sequential deploy of the infrastructure and the API. Auth is GitHub OIDC
 — the workflow assumes `superstruct-user-github-actions-deploy`
-(provisioned in `infrastructure/dev/10-github-oidc-provider` and
+(provisioned in `infrastructure/environments/dev/10-github-oidc-provider` and
 `11-github-actions-role`), whose trust policy only accepts this repository's
 `main` branch via GitHub's immutable-reference subject (account and repo IDs
 pinned). No AWS keys are stored in GitHub. The frontend deploys separately:

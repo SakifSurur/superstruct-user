@@ -9,7 +9,7 @@ day-2 operations and teardown. Architecture background is in the
 | Piece | Tool | Region |
 | --- | --- | --- |
 | Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
-| Security Hub CSPM, GitHub OIDC, KMS CMK | Terragrunt (`infrastructure/dev/00–20`) | eu-central-1 |
+| Security Hub CSPM, account hardening, GitHub OIDC, KMS CMK, JWT signing key | Terragrunt (`infrastructure/environments/dev/00–22`) | eu-central-1 |
 | JWKS/issuer API (OIDC discovery + JWKS) | oss-serverless (`services/jwks-api`) | eu-central-1 |
 | API: Lambda, HTTP API, JWT authorizer, DynamoDB, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-cloudfront`) | us-east-1 |
@@ -22,8 +22,9 @@ day-2 operations and teardown. Architecture background is in the
   AWS CLI v2, python3, zip, curl. For CI setup: the `gh` CLI.
 - **AWS**: an account with AdministratorAccess credentials, e.g. an SSO
   profile. All commands below assume `AWS_PROFILE` is exported.
-- **Config**: set the account ID and region in `infrastructure/dev/env.hcl` —
-  the single source of truth every unit reads.
+- **Config**: `infrastructure/environments/dev/env.hcl` holds ALL environment
+  configuration (account, region, repo URL, stack names, SSM contract paths,
+  Security Hub standards and control disablements) — units read only it.
 - **GitHub token for Amplify**: a fine-grained PAT with this repo selected and
   permissions **Contents: read** + **Webhooks: read/write** (or a classic PAT
   with `repo` + `admin:repo_hook`), stored once as a SecureString (it also
@@ -46,11 +47,11 @@ boundaries: `30-cloudfront` reads the API stack's `ApiDomain` output, and the AP
 CORS reads the Amplify URL from SSM.
 
 ```sh
-cd infrastructure/dev
+cd infrastructure/environments/dev
 
 # 1. State bucket + every unit that does not need the API stack yet.
-for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role \
-            20-kms 22-jwt-signing-key; do
+for unit in 00-security-hub 05-account-baseline 10-github-oidc-provider \
+            11-github-actions-role 20-kms 22-jwt-signing-key; do
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
@@ -61,7 +62,7 @@ cd ../.. && npm run deploy:jwks && npm run deploy:api
 
 # 3. Edge, then Amplify hosting (depends on the edge API URL; needs the
 #    github-token SSM parameter from the prerequisites).
-cd infrastructure/dev && terragrunt run --all apply
+cd infrastructure/environments/dev && terragrunt run --all apply
 
 # 4. Redeploy the API so CORS picks up the real Amplify origin, then trigger
 #    the first frontend build.
@@ -97,12 +98,13 @@ Register + login through the frontend (`$APP`) or with curl against
 ## CI/CD (GitHub Actions)
 
 Pushes to `main` run `.github/workflows/deploy.yml`: checks (lint, typecheck,
-tests) gate `terragrunt run --all apply` followed by the API deploy. Auth is
+tests) gate `terragrunt run --all apply` followed by the JWKS and API deploys.
+Auth is
 GitHub OIDC — no AWS keys in GitHub.
 
 One-time setup for a new repo or account:
 
-1. Update `oidc_subjects` in `infrastructure/dev/11-github-actions-role/terragrunt.hcl`.
+1. Update `oidc_subjects` in `infrastructure/environments/dev/11-github-actions-role/terragrunt.hcl`.
    GitHub mints **immutable-reference** subjects — `repo:OWNER@ownerId/REPO@repoId:ref:...`,
    *not* the classic `repo:owner/repo:ref:...`. Get the IDs from
    `gh api /users/<owner> --jq .id` and `gh api /repos/<owner>/<repo> --jq .id`.
@@ -120,7 +122,7 @@ app, auto-build enabled) — independent of the Actions workflow.
 npm test / npm run lint / npm run typecheck    # local checks (CI runs the same)
 npm run deploy:api                             # API only
 terragrunt apply                               # single unit, run inside its directory
-terragrunt run --all apply                     # whole infra tree (from infrastructure/dev)
+terragrunt run --all apply                     # whole infra tree (from infrastructure/environments/dev)
 terragrunt hcl format && terraform fmt -recursive  # formatting (from infrastructure/)
 npx osls logs -f login                         # tail a Lambda (in services/user-api)
 ```
@@ -133,14 +135,17 @@ including delete; with the CMK already pending deletion the stack delete fails
 (recovery: `aws kms cancel-key-deletion` + `enable-key`, retry, re-schedule).
 
 ```sh
-# 1. Hosting and edge first (30-cloudfront reads the API stack, so it must go while
-#    the stack still exists; 40 depends on 30).
-cd infrastructure/dev
+# 1. Units that read the API stack first (they refresh CloudFormation data
+#    sources, so the stack must still exist): monitoring, hosting, edge.
+cd infrastructure/environments/dev
+(cd 50-monitoring && terragrunt destroy)
 (cd 40-amplify && terragrunt destroy)
 (cd 30-cloudfront && terragrunt destroy)
 
-# 2. The API stack (empties its deployment bucket, deletes the secrets).
-(cd ../../services/user-api && npx osls remove)
+# 2. Both oss-serverless stacks — before the key units, because CloudFormation
+#    re-resolves their secret references even on delete.
+(cd ../../../services/user-api && npx osls remove)
+(cd ../../../services/jwks-api && npx osls remove)
 
 # 3. Everything else.
 terragrunt run --all destroy

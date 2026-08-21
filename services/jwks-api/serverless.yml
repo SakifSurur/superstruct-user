@@ -6,7 +6,7 @@ plugins:
 
 # Standalone issuer: API Gateway JWT authorizers resolve the JWKS as
 # {issuer}/.well-known/jwks.json, so this API's own URL is the issuer.
-# Requires infrastructure/dev/22-jwt-signing-key; deploy before user-api.
+# Requires infrastructure/environments/dev/22-jwt-signing-key; deploy before user-api.
 
 provider:
   name: aws

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Astro SSR frontend for the user API. Built and hosted by git-connected AWS Amplify (infrastructure/dev/40-frontend-hosting).",
+  "description": "Astro SSR frontend for the user API. Built and hosted by git-connected AWS Amplify (infrastructure/environments/dev/40-amplify).",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",

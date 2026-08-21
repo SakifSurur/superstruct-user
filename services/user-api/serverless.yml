@@ -46,7 +46,7 @@ provider:
   environment:
     USERS_TABLE_NAME: ${self:custom.usersTableName}
     NODE_OPTIONS: --enable-source-maps
-    # RS256 signing key from infrastructure/dev/22-jwt-signing-key — that unit
+    # RS256 signing key from infrastructure/environments/dev/22-jwt-signing-key — that unit
     # must exist before this stack deploys.
     JWT_PRIVATE_KEY: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:privateKeyPem}}'
     JWT_KID: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:kid}}'

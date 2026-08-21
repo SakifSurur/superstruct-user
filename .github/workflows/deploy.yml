@@ -61,7 +61,7 @@ jobs:
       # A fresh account first needs the bootstrap order from the README and
       # one run with --backend-bootstrap.
       - name: Apply infrastructure (Terragrunt)
-        working-directory: infrastructure/dev
+        working-directory: infrastructure/environments/dev
         env:
           TG_NON_INTERACTIVE: 'true'
         run: terragrunt run --all apply

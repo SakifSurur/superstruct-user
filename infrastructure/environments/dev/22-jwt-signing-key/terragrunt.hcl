@@ -18,6 +18,6 @@ dependencies {
 }
 
 inputs = {
-  name       = "${local.env.project}/${local.env.environment}/jwt-signing-key"
-  kms_key_id = "alias/${local.env.project}/${local.env.environment}"
+  name       = local.env.jwt_signing_key_secret_name
+  kms_key_id = local.env.kms_alias
 }

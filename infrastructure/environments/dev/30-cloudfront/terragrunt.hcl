@@ -37,6 +37,6 @@ EOF
 inputs = {
   name              = "${local.env.project}-${local.env.environment}-edge"
   comment           = "${local.env.project} ${local.env.environment} API edge"
-  origin_stack_name = "superstruct-user-api-${local.env.environment}"
-  url_ssm_parameter = "/${local.env.project}/${local.env.environment}/cloudfront/api-url"
+  origin_stack_name = local.env.api_stack_name
+  url_ssm_parameter = local.env.api_url_ssm_parameter
 }

@@ -25,10 +25,10 @@ dependency "cloudfront" {
 
 inputs = {
   name                       = "${local.env.project}-${local.env.environment}"
-  repository_url             = "https://github.com/SakifSurur/superstruct-user"
-  access_token_ssm_parameter = "/${local.env.project}/${local.env.environment}/github-token"
+  repository_url             = local.env.github_repository_url
+  access_token_ssm_parameter = local.env.github_token_ssm_parameter
   framework                  = "Astro"
-  ssm_contract_prefix        = "${local.env.project}/${local.env.environment}/frontend"
+  ssm_contract_prefix        = local.env.frontend_ssm_prefix
 
   environment_variables = {
     _CUSTOM_IMAGE             = "amplify:al2023"
