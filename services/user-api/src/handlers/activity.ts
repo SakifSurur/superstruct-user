@@ -13,7 +13,7 @@ interface AuditItem {
 
 // The partition key is the verified JWT subject — a user can only read their own trail.
 export const list = withErrorHandling(async (event) => {
-  const { userId } = await requireAuth(event);
+  const { userId } = requireAuth(event);
 
   const result = await ddb.send(
     new QueryCommand({

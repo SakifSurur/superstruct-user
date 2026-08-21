@@ -1,0 +1,68 @@
+service: superstruct-user-jwks
+frameworkVersion: '^4.0.0'
+
+plugins:
+  - serverless-esbuild
+
+# Standalone issuer: API Gateway JWT authorizers resolve the JWKS as
+# {issuer}/.well-known/jwks.json, so this API's own URL is the issuer.
+# Requires infrastructure/dev/22-jwt-signing-key; deploy before user-api.
+
+provider:
+  name: aws
+  runtime: nodejs24.x
+  architecture: arm64
+  region: ${opt:region, 'eu-central-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 128
+  timeout: 5
+  logRetentionInDays: 30
+  tracing:
+    lambda: true
+  environment:
+    NODE_OPTIONS: --enable-source-maps
+    JWT_PRIVATE_KEY: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:privateKeyPem}}'
+    JWT_KID: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:kid}}'
+  tags:
+    Project: superstruct-user
+    Environment: ${self:provider.stage}
+    ManagedBy: oss-serverless
+
+custom:
+  esbuild:
+    bundle: true
+    minify: true
+    sourcemap: true
+    target: node24
+    platform: node
+    format: cjs
+    exclude:
+      - '@aws-sdk/*'
+
+functions:
+  jwks:
+    handler: src/handler.jwks
+    events:
+      - httpApi:
+          method: GET
+          path: /.well-known/jwks.json
+  openidConfiguration:
+    handler: src/handler.openidConfiguration
+    events:
+      - httpApi:
+          method: GET
+          path: /.well-known/openid-configuration
+
+resources:
+  Resources:
+    IssuerParameter:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /superstruct-user/${self:provider.stage}/auth/issuer
+        Type: String
+        Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+
+  Outputs:
+    IssuerUrl:
+      Description: Token issuer URL; JWKS at {issuer}/.well-known/jwks.json.
+      Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'

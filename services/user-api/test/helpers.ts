@@ -14,6 +14,18 @@ export const makeEvent = (
   ...overrides,
 });
 
+// Simulates a request that passed the API Gateway JWT authorizer.
+export const authedEvent = (
+  userId: string,
+  overrides: Partial<APIGatewayProxyEventV2> = {},
+): APIGatewayProxyEventV2 =>
+  makeEvent({
+    ...overrides,
+    requestContext: {
+      authorizer: { jwt: { claims: { sub: userId }, scopes: [] } },
+    } as unknown as APIGatewayProxyEventV2['requestContext'],
+  });
+
 export const jsonEvent = (
   body: unknown,
   overrides: Partial<APIGatewayProxyEventV2> = {},

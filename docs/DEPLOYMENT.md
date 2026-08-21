@@ -10,7 +10,8 @@ day-2 operations and teardown. Architecture background is in the
 | --- | --- | --- |
 | Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
 | Security Hub CSPM, GitHub OIDC, KMS CMK | Terragrunt (`infrastructure/dev/00–20`) | eu-central-1 |
-| API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
+| JWKS/issuer API (OIDC discovery + JWKS) | oss-serverless (`services/jwks-api`) | eu-central-1 |
+| API: Lambda, HTTP API, JWT authorizer, DynamoDB, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-cloudfront`) | us-east-1 |
 | Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-amplify`) | eu-central-1 |
 | CloudWatch alarms + dashboard | Terragrunt (`50-monitoring`) | eu-central-1 |
@@ -53,9 +54,10 @@ for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role \
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
-# 2. The API stack. Requires 22-jwt-signing-key (RS256 key resolved at deploy
-#    time); CORS falls back to a localhost origin until the Amplify unit exists.
-cd ../.. && npm run deploy:api
+# 2. The issuer, then the API stack (its JWT authorizer resolves the issuer
+#    URL from SSM; both need 22-jwt-signing-key). CORS falls back to a
+#    localhost origin until the Amplify unit exists.
+cd ../.. && npm run deploy:jwks && npm run deploy:api
 
 # 3. Edge, then Amplify hosting (depends on the edge API URL; needs the
 #    github-token SSM parameter from the prerequisites).

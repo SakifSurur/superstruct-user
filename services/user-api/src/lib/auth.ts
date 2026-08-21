@@ -6,8 +6,8 @@ import {
   timingSafeEqual,
 } from 'node:crypto';
 import { promisify } from 'node:util';
-import { SignJWT, jwtVerify } from 'jose';
-import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { SignJWT } from 'jose';
+import type { APIGatewayProxyEventV2, APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
 import { HttpError } from './http';
 
 const scrypt = promisify(scryptCallback) as (
@@ -24,8 +24,9 @@ if (!privateKeyPem) {
 export const PRIVATE_KEY = createPrivateKey(privateKeyPem);
 export const PUBLIC_KEY = createPublicKey(PRIVATE_KEY);
 export const KID = process.env.JWT_KID ?? 'jwt-1';
+export const ISSUER = process.env.JWT_ISSUER ?? 'superstruct-user-api';
+export const AUDIENCE = 'superstruct-user-api';
 
-const ISSUER = 'superstruct-user-api';
 export const TOKEN_TTL_SECONDS = 3600;
 
 export const hashPassword = async (password: string): Promise<string> => {
@@ -47,22 +48,19 @@ export const signToken = (userId: string, email: string): Promise<string> =>
     .setProtectedHeader({ alg: 'RS256', kid: KID })
     .setSubject(userId)
     .setIssuer(ISSUER)
+    .setAudience(AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(`${TOKEN_TTL_SECONDS}s`)
     .sign(PRIVATE_KEY);
 
-// Throws a detail-free 401 on any failure.
-export const requireAuth = async (event: APIGatewayProxyEventV2): Promise<{ userId: string }> => {
-  const token = event.headers.authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!token) throw new HttpError(401, 'Missing bearer token');
-  try {
-    const { payload } = await jwtVerify(token, PUBLIC_KEY, {
-      issuer: ISSUER,
-      algorithms: ['RS256'],
-    });
-    if (!payload.sub) throw new Error('token has no subject');
-    return { userId: payload.sub };
-  } catch {
-    throw new HttpError(401, 'Invalid or expired token');
+// Token verification happens in API Gateway's native JWT authorizer; the
+// handler only reads the validated claims it forwarded.
+export const requireAuth = (event: APIGatewayProxyEventV2): { userId: string } => {
+  const claims = (event as APIGatewayProxyEventV2WithJWTAuthorizer).requestContext.authorizer?.jwt
+    ?.claims;
+  const sub = claims?.sub;
+  if (typeof sub !== 'string' || sub.length === 0) {
+    throw new HttpError(401, 'Missing authorizer claims');
   }
+  return { userId: sub };
 };

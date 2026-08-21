@@ -5,8 +5,7 @@ import type { EventBridgeEvent } from 'aws-lambda';
 import { list } from '../src/handlers/activity';
 import { handler as auditWriter } from '../src/handlers/audit-writer';
 import type { AuditEventType } from '../src/lib/audit';
-import { signToken } from '../src/lib/auth';
-import { invoke, makeEvent } from './helpers';
+import { authedEvent, invoke, makeEvent } from './helpers';
 
 const ddb = mockClient(DynamoDBDocumentClient);
 
@@ -42,9 +41,7 @@ describe('GET /me/activity', () => {
         },
       ],
     });
-    const token = await signToken('u1', 'a@b.co');
-
-    const result = await invoke(list, makeEvent({ headers: { authorization: `Bearer ${token}` } }));
+    const result = await invoke(list, authedEvent('u1'));
 
     expect(result.statusCode).toBe(200);
     const body = result.body as { items: { type: string }[] };

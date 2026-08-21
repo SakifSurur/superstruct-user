@@ -66,5 +66,8 @@ jobs:
           TG_NON_INTERACTIVE: 'true'
         run: terragrunt run --all apply
 
+      - name: Deploy JWKS API
+        run: npm run deploy:jwks
+
       - name: Deploy API
         run: npm run deploy:api

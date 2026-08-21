@@ -10,6 +10,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "package:api": "npm run package -w services/user-api",
-    "deploy:api": "npm run deploy -w services/user-api"
+    "deploy:api": "npm run deploy -w services/user-api",
+    "deploy:jwks": "npm run deploy -w services/jwks-api"
   }
 }

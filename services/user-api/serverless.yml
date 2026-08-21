@@ -19,6 +19,15 @@ provider:
     lambda: true
   httpApi:
     metrics: true
+    authorizers:
+      # Native JWT authorizer: validates signature (via {issuer}/.well-known/
+      # jwks.json), issuer, audience, and expiry before the Lambda runs.
+      jwtAuth:
+        type: jwt
+        identitySource: $request.header.Authorization
+        issuerUrl: ${ssm:/superstruct-user/${self:provider.stage}/auth/issuer}
+        audience:
+          - superstruct-user-api
     cors:
       allowedOrigins:
         # Frontend origin from 40-amplify's SSM parameter; fallback lets a fresh account deploy this stack first.
@@ -41,6 +50,7 @@ provider:
     # must exist before this stack deploys.
     JWT_PRIVATE_KEY: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:privateKeyPem}}'
     JWT_KID: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:kid}}'
+    JWT_ISSUER: ${ssm:/superstruct-user/${self:provider.stage}/auth/issuer}
     AUDIT_BUS_NAME: !Ref AuditBus
     AUDIT_TABLE_NAME: ${self:custom.auditTableName}
   iam:
@@ -105,6 +115,8 @@ functions:
       - httpApi:
           method: GET
           path: /api/v1/me
+          authorizer:
+            name: jwtAuth
   stats:
     handler: src/handlers/auth.stats
     events:
@@ -117,18 +129,16 @@ functions:
       - httpApi:
           method: GET
           path: /api/v1/security/findings
+          authorizer:
+            name: jwtAuth
   myActivity:
     handler: src/handlers/activity.list
     events:
       - httpApi:
           method: GET
           path: /api/v1/me/activity
-  jwks:
-    handler: src/handlers/jwks.handler
-    events:
-      - httpApi:
-          method: GET
-          path: /.well-known/jwks.json
+          authorizer:
+            name: jwtAuth
   # Invoked by AuditToDynamoRule, not by HTTP.
   auditWriter:
     handler: src/handlers/audit-writer.handler

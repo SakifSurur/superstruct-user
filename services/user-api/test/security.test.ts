@@ -6,8 +6,7 @@ import {
   type SeverityLabel,
 } from '@aws-sdk/client-securityhub';
 import { findings } from '../src/handlers/security';
-import { signToken } from '../src/lib/auth';
-import { invoke, makeEvent } from './helpers';
+import { authedEvent, invoke, makeEvent } from './helpers';
 
 const securityHubMock = mockClient(SecurityHubClient);
 
@@ -27,8 +26,7 @@ const finding = (severity: SeverityLabel, controlId: string, title: string) => (
   Resources: [{ Id: 'arn:aws:s3:::very-secret-bucket', Type: 'AwsS3Bucket' }],
 });
 
-const authedEvent = async () =>
-  makeEvent({ headers: { authorization: `Bearer ${await signToken('u1', 'a@b.co')}` } });
+
 
 describe('GET /security/findings', () => {
   beforeEach(() => {
@@ -52,7 +50,7 @@ describe('GET /security/findings', () => {
       ],
     });
 
-    const result = await invoke(findings, await authedEvent());
+    const result = await invoke(findings, authedEvent('u1'));
 
     expect(result.statusCode).toBe(200);
     const body = result.body as {
@@ -69,14 +67,14 @@ describe('GET /security/findings', () => {
   });
 
   it('never leaks resource identifiers or account ids', async () => {
-    const result = await invoke(findings, await authedEvent());
+    const result = await invoke(findings, authedEvent('u1'));
     const raw = JSON.stringify(result.body);
     expect(raw).not.toContain('076899628449');
     expect(raw).not.toContain('arn:');
   });
 
   it('serves from cache without re-calling Security Hub', async () => {
-    await invoke(findings, await authedEvent());
+    await invoke(findings, authedEvent('u1'));
     // cache was primed by earlier tests; the mock reset proves no new call
     expect(securityHubMock.commandCalls(GetFindingsCommand)).toHaveLength(0);
   });

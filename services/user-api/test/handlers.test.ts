@@ -4,8 +4,8 @@ import { DynamoDBDocumentClient, GetCommand, TransactWriteCommand } from '@aws-s
 import { TransactionCanceledException } from '@aws-sdk/client-dynamodb';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { login, me, register, stats } from '../src/handlers/auth';
-import { hashPassword, signToken } from '../src/lib/auth';
-import { invoke, jsonEvent, makeEvent } from './helpers';
+import { hashPassword } from '../src/lib/auth';
+import { authedEvent, invoke, jsonEvent, makeEvent } from './helpers';
 
 const ddb = mockClient(DynamoDBDocumentClient);
 const eventBridge = mockClient(EventBridgeClient);
@@ -197,9 +197,7 @@ describe('GET /me', () => {
 
   it('returns the profile for a valid token, without the password hash', async () => {
     ddb.on(GetCommand, { Key: { id: 'u1' } }).resolves({ Item: user });
-    const token = await signToken('u1', user.email);
-
-    const result = await invoke(me, makeEvent({ headers: { authorization: `Bearer ${token}` } }));
+    const result = await invoke(me, authedEvent('u1'));
 
     expect(result.statusCode).toBe(200);
     expect(result.body).toMatchObject({ id: 'u1', email: 'jane@example.com' });
@@ -214,8 +212,7 @@ describe('GET /me', () => {
 
   it('returns 404 when the token subject no longer exists', async () => {
     ddb.on(GetCommand).resolves({});
-    const token = await signToken('ghost', 'ghost@example.com');
-    const result = await invoke(me, makeEvent({ headers: { authorization: `Bearer ${token}` } }));
+    const result = await invoke(me, authedEvent('ghost'));
     expect(result.statusCode).toBe(404);
   });
 });

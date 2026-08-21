@@ -157,7 +157,7 @@ export const login = withErrorHandling(async (event) => {
 });
 
 export const me = withErrorHandling(async (event) => {
-  const { userId } = await requireAuth(event);
+  const { userId } = requireAuth(event);
 
   const result = await ddb.send(new GetCommand({ TableName: USERS_TABLE, Key: { id: userId } }));
   const user = result.Item as UserRecord | undefined;
