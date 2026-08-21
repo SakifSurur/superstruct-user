@@ -5,7 +5,7 @@ import { hashPassword, requireAuth, signToken, verifyPassword } from '../src/lib
 import { HttpError } from '../src/lib/http';
 import { makeEvent } from './helpers';
 
-const SIGNING_KEY = createPrivateKey(process.env.JWT_PRIVATE_KEY as string);
+const SIGNING_KEY = createPrivateKey(process.env.JWT_PRIVATE_KEY!);
 
 describe('password hashing', () => {
   it('verifies a correct password', async () => {
