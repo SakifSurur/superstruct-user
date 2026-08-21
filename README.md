@@ -47,18 +47,18 @@ infrastructure/
     11-github-actions-role/ # CI deploy role (trust: this repo's main only)
     20-kms/                 # app CMK (secrets encryption)
     22-jwt-signing-key/     # RS256 keypair for JWTs (private key in Secrets Manager)
-    30-edge/                # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
-    40-frontend-hosting/    # Amplify Hosting app (git-connected, builds on push)
+    30-cloudfront/          # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
+    40-amplify/             # Amplify Hosting app (git-connected, builds on push)
 ```
 
 ¹ CloudFront-scoped WAF web ACLs can only live in us-east-1; a unit pins its
 provider region with a `region.hcl` next to its `terragrunt.hcl`.
 
 **Cross-tool contract**: within Terragrunt, units wire together with
-`dependency` blocks (`40-frontend-hosting` consumes `30-edge`'s API URL).
-Across tools, SSM Parameter Store is the seam: `40-frontend-hosting` publishes
+`dependency` blocks (`40-amplify` consumes `30-cloudfront`'s API URL).
+Across tools, SSM Parameter Store is the seam: `40-amplify` publishes
 `/superstruct-user/<stage>/frontend/app-url` (read by the API's CORS config)
-and `30-edge` publishes `.../edge/api-url`; `30-edge` itself reads the
+and `30-cloudfront` publishes `.../cloudfront/api-url`; `30-cloudfront` itself reads the
 user-api stack's `ApiDomain` output.
 
 The frontend is Astro with server-side rendering (Amplify `WEB_COMPUTE`);
@@ -99,7 +99,7 @@ git push                                                # Amplify builds the fro
 ```
 
 Fresh account: follow **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. The
-CloudFront URL from SSM (`/superstruct-user/dev/edge/api-url`) is the
+CloudFront URL from SSM (`/superstruct-user/dev/cloudfront/api-url`) is the
 recommended entry (WAF, rate limiting, security headers); the raw execute-api
 URL also works but bypasses those protections.
 

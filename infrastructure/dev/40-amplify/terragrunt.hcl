@@ -14,8 +14,8 @@ terraform {
   source = "${get_repo_root()}/infrastructure/modules/terraform-aws-amplify-hosting"
 }
 
-dependency "edge" {
-  config_path = "../30-edge"
+dependency "cloudfront" {
+  config_path = "../30-cloudfront"
 
   mock_outputs = {
     url = "https://mock.cloudfront.net"
@@ -33,7 +33,7 @@ inputs = {
   environment_variables = {
     _CUSTOM_IMAGE             = "amplify:al2023"
     AMPLIFY_MONOREPO_APP_ROOT = "services/frontend"
-    PUBLIC_API_URL            = dependency.edge.outputs.url
+    PUBLIC_API_URL            = dependency.cloudfront.outputs.url
   }
 
   build_spec = <<-EOT

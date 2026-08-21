@@ -11,8 +11,8 @@ day-2 operations and teardown. Architecture background is in the
 | Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
 | Security Hub CSPM, GitHub OIDC, KMS CMK | Terragrunt (`infrastructure/dev/00–20`) | eu-central-1 |
 | API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
-| CloudFront + WAF edge | Terragrunt (`30-edge`) | us-east-1 |
-| Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-frontend-hosting`) | eu-central-1 |
+| CloudFront + WAF edge | Terragrunt (`30-cloudfront`) | us-east-1 |
+| Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-amplify`) | eu-central-1 |
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ export AWS_PROFILE=<your-profile>
 ## Fresh-account bootstrap
 
 Ordering matters only on the very first deploy, because two seams cross tool
-boundaries: `30-edge` reads the API stack's `ApiDomain` output, and the API's
+boundaries: `30-cloudfront` reads the API stack's `ApiDomain` output, and the API's
 CORS reads the Amplify URL from SSM.
 
 ```sh
@@ -79,7 +79,7 @@ Notes:
 ## Verify
 
 ```sh
-API=$(aws ssm get-parameter --name /superstruct-user/dev/edge/api-url \
+API=$(aws ssm get-parameter --name /superstruct-user/dev/cloudfront/api-url \
   --region eu-central-1 --query Parameter.Value --output text)
 APP=$(aws ssm get-parameter --name /superstruct-user/dev/frontend/app-url \
   --region eu-central-1 --query Parameter.Value --output text)
@@ -130,11 +130,11 @@ including delete; with the CMK already pending deletion the stack delete fails
 (recovery: `aws kms cancel-key-deletion` + `enable-key`, retry, re-schedule).
 
 ```sh
-# 1. Hosting and edge first (30-edge reads the API stack, so it must go while
+# 1. Hosting and edge first (30-cloudfront reads the API stack, so it must go while
 #    the stack still exists; 40 depends on 30).
 cd infrastructure/dev
-(cd 40-frontend-hosting && terragrunt destroy)
-(cd 30-edge && terragrunt destroy)
+(cd 40-amplify && terragrunt destroy)
+(cd 30-cloudfront && terragrunt destroy)
 
 # 2. The API stack (empties its deployment bucket, deletes the secrets).
 (cd ../../services/user-api && npx osls remove)
@@ -161,7 +161,7 @@ Left behind on purpose, remove manually if wanted:
   Amplify compute bundle) must pass `--prefix .`.
 
 - **CLOUDFRONT-scoped WAF web ACLs only exist in us-east-1** — hence
-  `30-edge`'s `region.hcl`. Units pin a provider region that way; remote state
+  `30-cloudfront`'s `region.hcl`. Units pin a provider region that way; remote state
   always stays in the home region.
 - **Direct execute-api access is enabled** — the raw API URL works, but it
   bypasses CloudFront's WAF, rate limiting, and security headers; treat the

@@ -17,7 +17,7 @@ provider:
     metrics: true
     cors:
       allowedOrigins:
-        # Frontend origin from 40-frontend-hosting's SSM parameter; fallback lets a fresh account deploy this stack first.
+        # Frontend origin from 40-amplify's SSM parameter; fallback lets a fresh account deploy this stack first.
         - ${ssm:/superstruct-user/${self:provider.stage}/frontend/app-url, 'http://localhost:4173'}
         - http://localhost:5173
       allowedHeaders:

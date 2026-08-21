@@ -38,5 +38,5 @@ inputs = {
   name              = "${local.env.project}-${local.env.environment}-edge"
   comment           = "${local.env.project} ${local.env.environment} API edge"
   origin_stack_name = "superstruct-user-api-${local.env.environment}"
-  url_ssm_parameter = "/${local.env.project}/${local.env.environment}/edge/api-url"
+  url_ssm_parameter = "/${local.env.project}/${local.env.environment}/cloudfront/api-url"
 }

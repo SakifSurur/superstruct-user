@@ -25,6 +25,6 @@ module "edge" {
   name              = "my-app-dev-edge"
   comment           = "my-app dev API edge"
   origin_stack_name = "my-app-api-dev"     # or: origin_domain = "xyz.execute-api…"
-  url_ssm_parameter = "/my-app/dev/edge/api-url"
+  url_ssm_parameter = "/my-app/dev/cloudfront/api-url"
 }
 ```
