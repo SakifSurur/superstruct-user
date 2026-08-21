@@ -1,5 +1,16 @@
 # superstruct-user
 
+**TL;DR** — A JWT auth demo, deployed entirely from code: an Astro SSR frontend
+(Amplify, git-connected) talking to a serverless HTTP API (Lambda `nodejs24.x`
++ DynamoDB) behind CloudFront + WAF. RS256 tokens are verified by API
+Gateway's native JWT authorizer against a standalone JWKS service; register
+and login activity is audited via EventBridge → S3 + DynamoDB. Only Lambda
+code lives in oss-serverless stacks — every resources-only piece (Security
+Hub, KMS, JWT keys, CloudFront/WAF, Amplify, CloudWatch monitoring) is
+Terragrunt with registry-shaped modules. **Push to `main` and everything
+deploys** (GitHub OIDC CI + Amplify auto-build); fresh-account bootstrap is in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 User HTTP API on AWS — [oss-serverless](https://github.com/oss-serverless/osls) (`osls`),
 TypeScript, esbuild, Lambda `nodejs24.x` (arm64) behind API Gateway (HTTP API),
 DynamoDB as the database, fronted by CloudFront + WAF.
