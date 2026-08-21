@@ -84,7 +84,9 @@ push to `main` — its manual-deployment API does not support SSR compute
 bundles.
 
 Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
-**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**.
+**[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. Architecture choices and their
+rationale (e.g. HTTP API over REST) are recorded in
+**[docs/DECISIONS.md](docs/DECISIONS.md)**.
 
 ## PII safety measures
 
