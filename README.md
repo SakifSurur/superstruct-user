@@ -106,7 +106,7 @@ URL also works but bypasses those protections.
 
 The API is versioned under `/api/v1`; a breaking change gets an `/api/v2`
 prefix beside it rather than mutating `/api/v1`. The frontend serves an
-interactive Swagger UI at `/docs` (login required).
+interactive Swagger UI at `/docs` (public).
 
 Auth internals: passwords are scrypt-hashed (`node:crypto`, per-user salt,
 constant-time compare) and never returned; registration writes the user, an

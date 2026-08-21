@@ -1,6 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import SwaggerGate from '../components/SwaggerGate';
+import SwaggerDocs from '../components/SwaggerDocs';
 ---
 
 <Layout title="API docs — superstruct-user">
@@ -12,6 +12,8 @@ import SwaggerGate from '../components/SwaggerGate';
       </div>
       <a href="/" class="text-sm text-muted-foreground underline-offset-4 hover:underline">← Home</a>
     </header>
-    <SwaggerGate client:only="react" />
+    <div class="rounded-xl border bg-card p-4">
+      <SwaggerDocs client:only="react" />
+    </div>
   </main>
 </Layout>

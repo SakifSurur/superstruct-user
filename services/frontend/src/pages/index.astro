@@ -5,11 +5,14 @@ import AuthPanel from '../components/AuthPanel';
 
 <Layout title="superstruct-user">
   <main class="mx-auto w-full max-w-2xl px-4 py-12">
-    <header class="mb-8">
-      <h1 class="text-2xl font-semibold tracking-tight">superstruct-user</h1>
-      <p class="text-muted-foreground">JWT auth demo</p>
+    <header class="mb-8 flex items-baseline justify-between">
+      <div>
+        <h1 class="text-2xl font-semibold tracking-tight">superstruct-user</h1>
+        <p class="text-muted-foreground">JWT auth demo</p>
+      </div>
+      <a href="/docs" class="text-sm text-muted-foreground underline-offset-4 hover:underline">API docs →</a>
     </header>
-    {/* client:only — the panel depends on localStorage and gates the API docs behind login */}
+    {/* client:only — the panel depends on localStorage */}
     <AuthPanel client:only="react" />
   </main>
 </Layout>
