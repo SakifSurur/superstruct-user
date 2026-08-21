@@ -1,8 +1,8 @@
 # superstruct-user
 
 **TL;DR** — A JWT auth demo, deployed entirely from code: an Astro SSR frontend
-(Amplify, git-connected) talking to a serverless HTTP API (Lambda `nodejs24.x`
-+ DynamoDB) behind CloudFront + WAF. RS256 tokens are verified by API
+(Amplify, git-connected) talking to a serverless HTTP API (Lambda `nodejs24.x` + DynamoDB)
+behind CloudFront + WAF. RS256 tokens are verified by API
 Gateway's native JWT authorizer against a standalone JWKS service; register
 and login activity is audited via EventBridge → S3 + DynamoDB. Only Lambda
 code lives in oss-serverless stacks — every resources-only piece (Security
@@ -33,12 +33,12 @@ browser ──> Amplify Hosting (Astro SSR, WEB_COMPUTE)
 Only the code that runs (Lambda) is an oss-serverless stack; everything
 resources-only is Terraform + Terragrunt:
 
-| Half                           | What                                                                  | Where        |
-| ------------------------------ | --------------------------------------------------------------------- | ------------ |
-| `services/user-api` (osls)     | Functions, routes, JWT authorizer, DynamoDB tables, audit pipeline    | eu-central-1 |
-| `services/jwks-api` (osls)     | Token issuer: JWKS + OIDC discovery for the JWT authorizer            | eu-central-1 |
-| `services/frontend`            | Astro SSR app (React auth island) — built by Amplify on push | —            |
-| `infrastructure/` (Terragrunt) | Everything below                                                      | —            |
+| Half                           | What                                                               | Where        |
+| ------------------------------ | ------------------------------------------------------------------ | ------------ |
+| `services/user-api` (osls)     | Functions, routes, JWT authorizer, DynamoDB tables, audit pipeline | eu-central-1 |
+| `services/jwks-api` (osls)     | Token issuer: JWKS + OIDC discovery for the JWT authorizer         | eu-central-1 |
+| `services/frontend`            | Astro SSR app (React auth island) — built by Amplify on push       | —            |
+| `infrastructure/` (Terragrunt) | Everything below                                                   | —            |
 
 ```
 infrastructure/
@@ -120,8 +120,8 @@ URL also works but bypasses those protections.
 
 ## Endpoints
 
-| Method | Path                    | Notes                                                                                      |
-| ------ | ----------------------- | ------------------------------------------------------------------------------------------ |
+| Method | Path                        | Notes                                                                                      |
+| ------ | --------------------------- | ------------------------------------------------------------------------------------------ |
 | POST   | `/api/v1/register`          | body: `{ "email", "password", "firstName", "lastName" }` → 201 with auto-generated user ID |
 | POST   | `/api/v1/login`             | body: `{ "email", "password" }` → `{ token, tokenType, expiresIn, user }` (JWT, RS256, 1h) |
 | GET    | `/api/v1/me`                | requires `Authorization: Bearer <token>`; returns the profile                              |
