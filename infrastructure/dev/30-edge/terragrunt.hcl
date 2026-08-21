@@ -9,7 +9,11 @@ locals {
   env = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
 }
 
-# Aliased home-region provider for the user-api stack lookup and the SSM parameter.
+terraform {
+  source = "${get_repo_root()}/infrastructure/modules/terraform-aws-cloudfront-waf"
+}
+
+# Aliased home-region provider for the origin stack lookup and the SSM parameter.
 generate "provider_home" {
   path      = "provider_home.tf"
   if_exists = "overwrite"
@@ -31,5 +35,8 @@ EOF
 }
 
 inputs = {
-  api_stack_name = "superstruct-user-api-${local.env.environment}"
+  name              = "${local.env.project}-${local.env.environment}-edge"
+  comment           = "${local.env.project} ${local.env.environment} API edge"
+  origin_stack_name = "superstruct-user-api-${local.env.environment}"
+  url_ssm_parameter = "/${local.env.project}/${local.env.environment}/edge/api-url"
 }

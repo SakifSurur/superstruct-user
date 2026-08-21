@@ -31,15 +31,16 @@ resources-only is Terraform + Terragrunt:
 ```
 infrastructure/
   root.hcl                  # S3 remote state (auto-bootstrapped) + generated provider
-  modules/
-    terraform-aws-amplify-hosting/  # registry-shaped module (git-connected SSR hosting)
+  modules/                  # registry-shaped modules (Blackbird structure)
+    terraform-aws-amplify-hosting/  # git-connected Amplify SSR hosting
+    terraform-aws-cloudfront-waf/   # CloudFront + WAF edge for an HTTPS origin
   dev/                      # Environment - (e.g. dev, staging, prod)
     env.hcl                 # region, account ID — single source of truth
     00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
     10-github-oidc-provider/# GitHub Actions OIDC provider
     11-github-actions-role/ # CI deploy role (trust: this repo's main only)
     20-kms/                 # app CMK (secrets encryption) + alias SSM parameter
-    30-edge/                # CloudFront + WAFv2 in front of the API (us-east-1¹)
+    30-edge/                # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
     40-frontend-hosting/    # Amplify Hosting app (git-connected, builds on push)
 ```
 

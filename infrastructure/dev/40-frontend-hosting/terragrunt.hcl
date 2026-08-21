@@ -18,7 +18,7 @@ dependency "edge" {
   config_path = "../30-edge"
 
   mock_outputs = {
-    api_url = "https://mock.cloudfront.net"
+    url = "https://mock.cloudfront.net"
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }
@@ -33,7 +33,7 @@ inputs = {
   environment_variables = {
     _CUSTOM_IMAGE             = "amplify:al2023"
     AMPLIFY_MONOREPO_APP_ROOT = "services/frontend"
-    PUBLIC_API_URL            = dependency.edge.outputs.api_url
+    PUBLIC_API_URL            = dependency.edge.outputs.url
   }
 
   build_spec = <<-EOT

@@ -1,14 +1,16 @@
-data "aws_cloudformation_stack" "api" {
+data "aws_cloudformation_stack" "origin" {
+  count = var.origin_stack_name != null ? 1 : 0
+
   provider = aws.home
-  name     = var.api_stack_name
+  name     = var.origin_stack_name
 }
 
 locals {
-  api_domain = data.aws_cloudformation_stack.api.outputs["ApiDomain"]
+  origin_domain = var.origin_stack_name != null ? data.aws_cloudformation_stack.origin[0].outputs[var.origin_stack_output_key] : var.origin_domain
 }
 
-resource "aws_wafv2_web_acl" "api" {
-  name  = "${var.project}-${var.environment}-edge"
+resource "aws_wafv2_web_acl" "this" {
+  name  = var.name
   scope = "CLOUDFRONT"
 
   default_action {
@@ -17,7 +19,7 @@ resource "aws_wafv2_web_acl" "api" {
 
   visibility_config {
     cloudwatch_metrics_enabled = true
-    metric_name                = "${var.project}-${var.environment}-edge"
+    metric_name                = var.name
     sampled_requests_enabled   = true
   }
 
@@ -98,7 +100,7 @@ resource "aws_wafv2_web_acl" "api" {
     statement {
       rate_based_statement {
         aggregate_key_type = "IP"
-        limit              = 300 # requests per 5 minutes per IP
+        limit              = var.rate_limit_per_5min
       }
     }
 
@@ -110,16 +112,16 @@ resource "aws_wafv2_web_acl" "api" {
   }
 }
 
-resource "aws_cloudfront_distribution" "api" {
+resource "aws_cloudfront_distribution" "this" {
   enabled      = true
-  comment      = "${var.project} ${var.environment} API edge"
+  comment      = var.comment
   http_version = "http2and3"
-  price_class  = "PriceClass_100"
-  web_acl_id   = aws_wafv2_web_acl.api.arn
+  price_class  = var.price_class
+  web_acl_id   = aws_wafv2_web_acl.this.arn
 
   origin {
-    origin_id   = "http-api"
-    domain_name = local.api_domain
+    origin_id   = "origin"
+    domain_name = local.origin_domain
 
     custom_origin_config {
       http_port              = 80
@@ -130,7 +132,7 @@ resource "aws_cloudfront_distribution" "api" {
   }
 
   default_cache_behavior {
-    target_origin_id       = "http-api"
+    target_origin_id       = "origin"
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
     allowed_methods        = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
@@ -152,9 +154,11 @@ resource "aws_cloudfront_distribution" "api" {
   }
 }
 
-resource "aws_ssm_parameter" "api_url" {
+resource "aws_ssm_parameter" "url" {
+  count = var.url_ssm_parameter != null ? 1 : 0
+
   provider = aws.home
-  name     = "/${var.project}/${var.environment}/edge/api-url"
+  name     = var.url_ssm_parameter
   type     = "String"
-  value    = "https://${aws_cloudfront_distribution.api.domain_name}"
+  value    = "https://${aws_cloudfront_distribution.this.domain_name}"
 }
