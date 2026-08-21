@@ -32,6 +32,7 @@ resources-only is Terraform + Terragrunt:
 infrastructure/
   root.hcl                  # S3 remote state (auto-bootstrapped) + generated provider
   modules/                  # registry-shaped modules (Blackbird structure)
+    terraform-aws-account-baseline/ # account hardening (SG/EBS/SSM public sharing)
     terraform-aws-amplify-hosting/  # git-connected Amplify SSR hosting
     terraform-aws-cloudfront-waf/   # CloudFront + WAF edge for an HTTPS origin
     terraform-aws-jwt-signing-key/  # RS256 keypair in Secrets Manager

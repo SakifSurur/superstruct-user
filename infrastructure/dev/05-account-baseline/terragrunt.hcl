@@ -10,6 +10,10 @@ locals {
   env = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
 }
 
+terraform {
+  source = "${get_repo_root()}/infrastructure/modules/terraform-aws-account-baseline"
+}
+
 inputs = {
   aws_region     = local.env.aws_region
   aws_account_id = local.env.aws_account_id
