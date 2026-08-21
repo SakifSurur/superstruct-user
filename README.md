@@ -181,6 +181,13 @@ S3 is the immutable archive; DynamoDB is the queryable per-user view shown as
 "Recent activity" on the frontend after login. Events without a userId (login
 attempts for unknown emails) exist only in the archive.
 
+**Retention**: the DynamoDB view keeps events for **90 days** — the writer
+stamps `expiresAt` (`RETENTION_SECONDS` in `audit-writer.ts`) and the table's
+TTL deletes rows after it passes (lazily, within ~48h of expiry). The S3
+archive keeps them for **365 days** via a bucket lifecycle rule
+(`expire-audit-logs` in `serverless.yml`). So an event older than 90 days is
+gone from `/api/v1/me/activity` but still in the archive until a year old.
+
 Events: `user.registered`, `user.login.succeeded`, `user.login.failed`
 (with `reason`), each carrying userId/email, client IP, user agent, and a
 timestamp — never passwords or hashes (tested). Emission is fail-open: an
