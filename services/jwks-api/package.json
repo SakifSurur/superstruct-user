@@ -11,7 +11,8 @@
     "remove": "osls remove"
   },
   "dependencies": {
-    "jose": "^6.2.9"
+    "jose": "^6.2.9",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
