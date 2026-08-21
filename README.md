@@ -153,6 +153,38 @@ signature, issuer, audience, and expiry against the standalone `jwks-api`
 (the issuer, serving OIDC discovery + JWKS) before the Lambda runs; handlers
 read the validated claims from the request context.
 
+## Data model
+
+Two DynamoDB tables, both on-demand, SSE-encrypted.
+
+**Users table** (`superstruct-user-api-<stage>-users`) is a small
+**single-table design**: one generic `id` partition key (no sort key) holding
+three item kinds, distinguished by key prefix:
+
+| `id`                | Item kind          | Attributes                                                |
+| ------------------- | ------------------ | --------------------------------------------------------- |
+| `<uuid>`            | user record        | email, firstName, lastName, passwordHash, createdAt       |
+| `email#<email>`     | uniqueness marker  | userId (points at the user record)                        |
+| `stats#users`       | counter singleton  | userCount (`ADD`-incremented)                             |
+
+The marker is what makes email uniqueness race-free: DynamoDB conditions can
+only guard the item being written, so the email must *be* an item.
+Registration writes all three in one `TransactWriteItems` with
+`attribute_not_exists` conditions — two concurrent registrations for the same
+email cannot both commit (the loser gets a 409). Login is then two `GetItem`
+calls: marker → userId → user record. There are **no GSIs** — every access
+pattern is a key lookup.
+
+**Audit table** (`superstruct-user-api-<stage>-audit`) is the per-user hot
+view of the audit trail (S3 holds the full archive):
+
+- Partition key `userId`, sort key `sk = <ISO timestamp>#<event id>` — the
+  event id suffix keeps keys unique when two events share a timestamp, and
+  the timestamp prefix means "latest 20, newest first" is a single `Query`
+  with `ScanIndexForward: false`.
+- Rows carry `expiresAt` for the table's TTL (see
+  [audit retention](#audit-trail)).
+
 ## Observability
 
 Lambdas run with X-Ray active tracing and instrumented AWS SDK clients
