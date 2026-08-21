@@ -4,7 +4,14 @@ import { metrics, stats, type MetricsResponse } from '../api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
 const TOKEN_KEY = 'superstruct-user.token';
 
@@ -33,63 +40,51 @@ function StatTile({ label, value, tone }: { label: string; value: string; tone?:
   );
 }
 
-function BarChart({ data, timestamps, color }: { data: number[]; timestamps: string[]; color: string }) {
-  const w = 640;
-  const h = 120;
-  const max = Math.max(...data, 1);
-  const gap = 2;
-  const barW = Math.max((w - gap * data.length) / Math.max(data.length, 1), 2);
+const requestsConfig = {
+  requests: { label: 'Requests', color: SERIES_REQUESTS },
+} satisfies ChartConfig;
+
+const latencyConfig = {
+  latency: { label: 'p99 latency (ms)', color: SERIES_LATENCY },
+} satisfies ChartConfig;
+
+interface ChartRow {
+  time: string;
+  requests: number;
+  latency: number;
+}
+
+function RequestsChart({ rows }: { rows: ChartRow[] }) {
   return (
-    <svg viewBox={`0 0 ${w} ${h + 18}`} className="w-full" role="img" aria-label="Hourly values">
-      {data.map((v, i) => {
-        const bh = Math.max((v / max) * h, v > 0 ? 2 : 0);
-        return (
-          <rect
-            key={i}
-            x={i * (barW + gap)}
-            y={h - bh}
-            width={barW}
-            height={bh}
-            rx={2}
-            fill={color}
-          >
-            <title>{`${hourLabel(timestamps[i] ?? '')} — ${v}`}</title>
-          </rect>
-        );
-      })}
-      <line x1="0" y1={h + 0.5} x2={w} y2={h + 0.5} stroke="currentColor" opacity="0.15" />
-      <text x="0" y={h + 14} className="fill-current" opacity="0.55" fontSize="11">
-        {timestamps[0] ? hourLabel(timestamps[0]) : ''}
-      </text>
-      <text x={w} y={h + 14} textAnchor="end" className="fill-current" opacity="0.55" fontSize="11">
-        {timestamps.at(-1) ? hourLabel(timestamps.at(-1)!) : ''}
-      </text>
-    </svg>
+    <ChartContainer config={requestsConfig} className="h-48 w-full">
+      <BarChart data={rows} margin={{ left: 0, right: 0 }}>
+        <CartesianGrid vertical={false} strokeOpacity={0.35} />
+        <XAxis dataKey="time" tickLine={false} axisLine={false} minTickGap={48} />
+        <YAxis width={36} tickLine={false} axisLine={false} allowDecimals={false} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="requests" fill="var(--color-requests)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ChartContainer>
   );
 }
 
-function LineChart({ data, timestamps, color }: { data: number[]; timestamps: string[]; color: string }) {
-  const w = 640;
-  const h = 120;
-  const max = Math.max(...data, 1);
-  const step = data.length > 1 ? w / (data.length - 1) : w;
-  const points = data.map((v, i) => `${i * step},${h - (v / max) * (h - 6) - 3}`).join(' ');
+function LatencyChart({ rows }: { rows: ChartRow[] }) {
   return (
-    <svg viewBox={`0 0 ${w} ${h + 18}`} className="w-full" role="img" aria-label="Hourly p99 latency">
-      <polyline points={points} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-      {data.map((v, i) => (
-        <circle key={i} cx={i * step} cy={h - (v / max) * (h - 6) - 3} r="8" fill="transparent">
-          <title>{`${hourLabel(timestamps[i] ?? '')} — ${Math.round(v)} ms`}</title>
-        </circle>
-      ))}
-      <line x1="0" y1={h + 0.5} x2={w} y2={h + 0.5} stroke="currentColor" opacity="0.15" />
-      <text x="0" y={h + 14} className="fill-current" opacity="0.55" fontSize="11">
-        {timestamps[0] ? hourLabel(timestamps[0]) : ''}
-      </text>
-      <text x={w} y={h + 14} textAnchor="end" className="fill-current" opacity="0.55" fontSize="11">
-        {timestamps.at(-1) ? hourLabel(timestamps.at(-1)!) : ''}
-      </text>
-    </svg>
+    <ChartContainer config={latencyConfig} className="h-48 w-full">
+      <LineChart data={rows} margin={{ left: 0, right: 0 }}>
+        <CartesianGrid vertical={false} strokeOpacity={0.35} />
+        <XAxis dataKey="time" tickLine={false} axisLine={false} minTickGap={48} />
+        <YAxis width={44} tickLine={false} axisLine={false} allowDecimals={false} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Line
+          dataKey="latency"
+          stroke="var(--color-latency)"
+          strokeWidth={2}
+          dot={false}
+          type="monotone"
+        />
+      </LineChart>
+    </ChartContainer>
   );
 }
 
@@ -158,6 +153,12 @@ function Panel() {
     );
   }
 
+  const rows: ChartRow[] = m.timestamps.map((t, i) => ({
+    time: hourLabel(t),
+    requests: m.series.requests[i] ?? 0,
+    latency: Math.round(m.series.latencyP99Ms[i] ?? 0),
+  }));
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -184,7 +185,7 @@ function Panel() {
           <CardDescription>{compact(m.totals.requests)} total in the last {m.windowHours}h</CardDescription>
         </CardHeader>
         <CardContent>
-          <BarChart data={m.series.requests} timestamps={m.timestamps} color={SERIES_REQUESTS} />
+          <RequestsChart rows={rows} />
         </CardContent>
       </Card>
 
@@ -194,7 +195,7 @@ function Panel() {
           <CardDescription>hourly, CloudWatch p99</CardDescription>
         </CardHeader>
         <CardContent>
-          <LineChart data={m.series.latencyP99Ms} timestamps={m.timestamps} color={SERIES_LATENCY} />
+          <LatencyChart rows={rows} />
         </CardContent>
       </Card>
 
