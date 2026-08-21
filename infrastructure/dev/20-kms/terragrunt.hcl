@@ -1,5 +1,4 @@
-# Application CMK for Secrets Manager encryption; publishes the alias to SSM
-# so user-api can fall back to the AWS-managed key when this unit is absent.
+# Application CMK for Secrets Manager encryption.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

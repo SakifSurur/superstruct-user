@@ -11,16 +11,6 @@ module "kms" {
   aliases = ["${var.project}/${var.environment}"]
 }
 
-# user-api reads this with an aws/secretsmanager fallback, so the API stack
-# deploys even when this unit was never applied.
-resource "aws_ssm_parameter" "secrets_key_alias" {
-  name  = "/${var.project}/${var.environment}/kms/secrets-key-alias"
-  type  = "String"
-  value = "alias/${var.project}/${var.environment}"
-
-  depends_on = [module.kms]
-}
-
 moved {
   from = aws_kms_key.this[0]
   to   = module.kms.aws_kms_key.this[0]

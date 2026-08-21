@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SignJWT } from 'jose';
+import { createPrivateKey } from 'node:crypto';
 import { hashPassword, requireAuth, signToken, verifyPassword } from '../src/lib/auth';
 import { HttpError } from '../src/lib/http';
 import { makeEvent } from './helpers';
 
-const SIGNING_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
+const SIGNING_KEY = createPrivateKey(process.env.JWT_PRIVATE_KEY as string);
 
 describe('password hashing', () => {
   it('verifies a correct password', async () => {
@@ -50,7 +51,7 @@ describe('JWT', () => {
 
   it('rejects an expired token with 401', async () => {
     const expired = await new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'RS256' })
       .setSubject('user-123')
       .setIssuer('superstruct-user-api')
       .setExpirationTime(Math.floor(Date.now() / 1000) - 60)
@@ -61,7 +62,7 @@ describe('JWT', () => {
 
   it('rejects a token from another issuer with 401', async () => {
     const foreign = await new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'RS256' })
       .setSubject('user-123')
       .setIssuer('someone-else')
       .setExpirationTime('1h')

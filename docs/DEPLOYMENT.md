@@ -47,12 +47,13 @@ CORS reads the Amplify URL from SSM.
 cd infrastructure/dev
 
 # 1. State bucket + every unit that does not need the API stack yet.
-for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role 20-kms; do
+for unit in 00-security-hub 10-github-oidc-provider 11-github-actions-role \
+            20-kms 22-jwt-signing-key; do
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
-# 2. The API stack. Deploys standalone (CORS falls back to a localhost
-#    origin until the Amplify unit exists).
+# 2. The API stack. Requires 22-jwt-signing-key (RS256 key resolved at deploy
+#    time); CORS falls back to a localhost origin until the Amplify unit exists.
 cd ../.. && npm run deploy:api
 
 # 3. Edge, then Amplify hosting (depends on the edge API URL; needs the

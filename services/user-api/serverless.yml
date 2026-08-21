@@ -33,7 +33,10 @@ provider:
   environment:
     USERS_TABLE_NAME: ${self:custom.usersTableName}
     NODE_OPTIONS: --enable-source-maps
-    JWT_SECRET: !Sub '{{resolve:secretsmanager:${JwtSecret}:SecretString:signingKey}}'
+    # RS256 signing key from infrastructure/dev/22-jwt-signing-key — that unit
+    # must exist before this stack deploys.
+    JWT_PRIVATE_KEY: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:privateKeyPem}}'
+    JWT_KID: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:kid}}'
     AUDIT_BUS_NAME: !Ref AuditBus
     AUDIT_TABLE_NAME: ${self:custom.auditTableName}
   iam:
@@ -66,8 +69,6 @@ provider:
 custom:
   usersTableName: ${self:service}-${self:provider.stage}-users
   auditTableName: ${self:service}-${self:provider.stage}-audit
-  # CMK alias from 20-kms; the AWS-managed-key fallback keeps this stack independently deployable.
-  kmsAlias: ${ssm:/superstruct-user/${self:provider.stage}/kms/secrets-key-alias, 'alias/aws/secretsmanager'}
   esbuild:
     bundle: true
     minify: true
@@ -118,6 +119,12 @@ functions:
       - httpApi:
           method: GET
           path: /api/v1/me/activity
+  jwks:
+    handler: src/handlers/jwks.handler
+    events:
+      - httpApi:
+          method: GET
+          path: /.well-known/jwks.json
   # Invoked by AuditToDynamoRule, not by HTTP.
   auditWriter:
     handler: src/handlers/audit-writer.handler
@@ -153,18 +160,6 @@ resources:
         TimeToLiveSpecification:
           AttributeName: expiresAt
           Enabled: true
-
-    JwtSecret:
-      Type: AWS::SecretsManager::Secret
-      Properties:
-        Name: superstruct-user/${self:provider.stage}/jwt-secret
-        Description: HS256 signing key for the API's JWTs.
-        KmsKeyId: ${self:custom.kmsAlias}
-        GenerateSecretString:
-          SecretStringTemplate: '{}'
-          GenerateStringKey: signingKey
-          ExcludePunctuation: true
-          PasswordLength: 64
 
     AuditBus:
       Type: AWS::Events::EventBus
