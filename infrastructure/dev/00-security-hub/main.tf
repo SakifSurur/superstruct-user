@@ -25,10 +25,6 @@ locals {
       standards = { fsbp = local.fsbp, nist = local.nist }
       reason    = "Config recorder is org-managed via StackSet; not remediable from this account"
     }
-    "SSM.7" = {
-      standards = { fsbp = local.fsbp }
-      reason    = "Accepted risk in this sandbox account; muted by owner request"
-    }
     "GuardDuty.6" = {
       standards = { fsbp = local.fsbp }
       reason    = "GuardDuty detector is administered by the org delegated admin"

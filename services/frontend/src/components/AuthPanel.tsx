@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ACTIVITY_LABELS: Record<ActivityItem['type'], string> = {
@@ -112,6 +113,28 @@ function Panel() {
   const profile = token !== null ? meQuery.data : undefined;
   const posture = token !== null ? postureQuery.data : undefined;
   const events = token !== null ? (activityQuery.data?.items ?? []) : [];
+
+  // A returning visitor has a token but no profile yet — showing the login
+  // card here causes a visible jump when /me resolves. Hold a skeleton instead.
+  if (token !== null && meQuery.isPending) {
+    return (
+      <Card>
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardContent>
+        <CardFooter className="gap-2">
+          <Skeleton className="h-9 w-40" />
+          <Skeleton className="h-9 w-24" />
+        </CardFooter>
+      </Card>
+    );
+  }
 
   if (profile) {
     return (

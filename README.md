@@ -34,9 +34,13 @@ infrastructure/
   modules/                  # registry-shaped modules (Blackbird structure)
     terraform-aws-amplify-hosting/  # git-connected Amplify SSR hosting
     terraform-aws-cloudfront-waf/   # CloudFront + WAF edge for an HTTPS origin
+    terraform-aws-jwt-signing-key/  # RS256 keypair in Secrets Manager
   dev/                      # Environment - (e.g. dev, staging, prod)
     env.hcl                 # region, account ID — single source of truth
-    00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53)
+    00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53);
+                            # unfixable controls disabled in code, with reasons
+    05-account-baseline/    # account hardening: default-SG rules removed, EBS
+                            # snapshot + SSM document public sharing blocked
     10-github-oidc-provider/# GitHub Actions OIDC provider
     11-github-actions-role/ # CI deploy role (trust: this repo's main only)
     20-kms/                 # app CMK (secrets encryption)
@@ -76,7 +80,10 @@ Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
   handlers never log request bodies.
 - **Detection** — GuardDuty (org-managed; incl. Lambda network logs, S3 data
   events) plus self-managed Security Hub CSPM (FSBP + NIST 800-53 r5) from
-  `infrastructure/dev/00-security-hub`.
+  `infrastructure/dev/00-security-hub`; controls that cannot be remediated
+  from this account are disabled there in code with auditable reasons.
+- **Account hardening** — `05-account-baseline` removes the default security
+  group's rules and blocks public sharing of EBS snapshots and SSM documents.
 
 ## Deploy
 
