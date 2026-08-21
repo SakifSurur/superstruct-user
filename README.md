@@ -35,6 +35,7 @@ infrastructure/
     terraform-aws-amplify-hosting/  # git-connected Amplify SSR hosting
     terraform-aws-cloudfront-waf/   # CloudFront + WAF edge for an HTTPS origin
     terraform-aws-jwt-signing-key/  # RS256 keypair in Secrets Manager
+    terraform-aws-security-hub/     # Security Hub CSPM + control disablements
   dev/                      # Environment - (e.g. dev, staging, prod)
     env.hcl                 # region, account ID — single source of truth
     00-security-hub/        # self-managed Security Hub CSPM (FSBP + NIST 800-53);
