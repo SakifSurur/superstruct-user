@@ -1,8 +1,9 @@
 import { GetFindingsCommand, SecurityHubClient } from '@aws-sdk/client-securityhub';
 import { json, withErrorHandling } from '../lib/http';
+import { traced } from '../lib/tracing';
 import { requireAuth } from '../lib/auth';
 
-const securityHub = new SecurityHubClient({});
+const securityHub = traced(new SecurityHubClient({}));
 
 export interface FindingsSummary {
   counts: { critical: number; high: number; medium: number; low: number };

@@ -1,7 +1,8 @@
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
+import { traced } from './tracing';
 
-const client = new EventBridgeClient({});
+const client = traced(new EventBridgeClient({}));
 
 const BUS_NAME = process.env.AUDIT_BUS_NAME;
 const AUDIT_SOURCE = 'superstruct-user.api';

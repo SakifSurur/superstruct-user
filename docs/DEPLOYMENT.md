@@ -13,6 +13,7 @@ day-2 operations and teardown. Architecture background is in the
 | API: Lambda, HTTP API, DynamoDB, secrets, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-cloudfront`) | us-east-1 |
 | Amplify hosting (WEB_COMPUTE, git-connected Astro SSR builds) | Terragrunt (`40-amplify`) | eu-central-1 |
+| CloudWatch alarms + dashboard | Terragrunt (`50-monitoring`) | eu-central-1 |
 
 ## Prerequisites
 

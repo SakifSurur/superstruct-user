@@ -13,6 +13,10 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
+  # X-Ray active tracing; traces appear under CloudWatch > Traces. HTTP APIs
+  # have no gateway-level tracing, so traces begin at the Lambda.
+  tracing:
+    lambda: true
   httpApi:
     metrics: true
     cors:
