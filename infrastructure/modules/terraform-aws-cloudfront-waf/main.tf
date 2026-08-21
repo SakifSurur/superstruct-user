@@ -5,6 +5,13 @@ data "aws_cloudformation_stack" "origin" {
   name     = var.origin_stack_name
 }
 
+data "aws_secretsmanager_secret_version" "origin_verify" {
+  count = var.origin_verify_secret_name != null ? 1 : 0
+
+  provider  = aws.home
+  secret_id = var.origin_verify_secret_name
+}
+
 locals {
   origin_domain = var.origin_stack_name != null ? data.aws_cloudformation_stack.origin[0].outputs[var.origin_stack_output_key] : var.origin_domain
 }
@@ -122,6 +129,15 @@ resource "aws_cloudfront_distribution" "this" {
   origin {
     origin_id   = "origin"
     domain_name = local.origin_domain
+
+    dynamic "custom_header" {
+      for_each = var.origin_verify_secret_name != null ? [1] : []
+
+      content {
+        name  = "x-origin-verify"
+        value = data.aws_secretsmanager_secret_version.origin_verify[0].secret_string
+      }
+    }
 
     custom_origin_config {
       http_port              = 80

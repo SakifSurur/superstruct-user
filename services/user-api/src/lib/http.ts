@@ -1,6 +1,19 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 
 export type Handler = (event: APIGatewayProxyEventV2) => Promise<APIGatewayProxyResultV2>;
+
+// When set, only requests carrying the CloudFront-injected x-origin-verify
+// header are served, so the raw execute-api URL bypasses nothing.
+const ORIGIN_VERIFY_SECRET = process.env.ORIGIN_VERIFY_SECRET;
+
+const originVerified = (event: APIGatewayProxyEventV2): boolean => {
+  if (!ORIGIN_VERIFY_SECRET) return true;
+  const header = event.headers['x-origin-verify'];
+  if (!header) return false;
+  if (header.length !== ORIGIN_VERIFY_SECRET.length) return false;
+  return timingSafeEqual(Buffer.from(header), Buffer.from(ORIGIN_VERIFY_SECRET));
+};
 
 export const json = (statusCode: number, body: unknown): APIGatewayProxyResultV2 => ({
   statusCode,
@@ -30,6 +43,7 @@ export const withErrorHandling =
   (handler: Handler): Handler =>
   async (event) => {
     try {
+      if (!originVerified(event)) return json(403, { message: 'Forbidden' });
       return await handler(event);
     } catch (error) {
       if (error instanceof HttpError) {

@@ -20,6 +20,13 @@ locals {
   kms_alias                   = "alias/${local.project}/${local.environment}"
   jwt_signing_key_secret_name = "${local.project}/${local.environment}/jwt-signing-key"
 
+  # Shared secret proving a request came through CloudFront. Injected as an
+  # origin custom header by 30-cloudfront and checked by user-api, so the raw
+  # execute-api URL returns 403. jwks-api is intentionally NOT behind this —
+  # the API Gateway JWT authorizer fetches the issuer's discovery documents
+  # directly, not through CloudFront.
+  origin_verify_secret_name = "${local.project}/${local.environment}/origin-verify"
+
   # Lambda functions covered by monitoring (per stack).
   api_function_names  = ["register", "login", "me", "stats", "securityFindings", "myActivity", "metrics", "auditWriter"]
   jwks_function_names = ["jwks", "openidConfiguration"]

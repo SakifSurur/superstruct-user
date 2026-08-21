@@ -13,6 +13,10 @@ terraform {
   source = "${get_repo_root()}/infrastructure/modules/terraform-aws-cloudfront-waf"
 }
 
+dependencies {
+  paths = ["../25-origin-verify"]
+}
+
 # Aliased home-region provider for the origin stack lookup and the SSM parameter.
 generate "provider_home" {
   path      = "provider_home.tf"
@@ -35,8 +39,9 @@ EOF
 }
 
 inputs = {
-  name              = "${local.env.project}-${local.env.environment}-edge"
-  comment           = "${local.env.project} ${local.env.environment} API edge"
-  origin_stack_name = local.env.api_stack_name
-  url_ssm_parameter = local.env.api_url_ssm_parameter
+  name                      = "${local.env.project}-${local.env.environment}-edge"
+  comment                   = "${local.env.project} ${local.env.environment} API edge"
+  origin_stack_name         = local.env.api_stack_name
+  url_ssm_parameter         = local.env.api_url_ssm_parameter
+  origin_verify_secret_name = local.env.origin_verify_secret_name
 }

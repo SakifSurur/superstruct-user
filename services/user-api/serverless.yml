@@ -51,6 +51,10 @@ provider:
     JWT_PRIVATE_KEY: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:privateKeyPem}}'
     JWT_KID: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/jwt-signing-key:SecretString:kid}}'
     JWT_ISSUER: ${ssm:/superstruct-user/${self:provider.stage}/auth/issuer}
+    # Requests missing this header value are rejected, forcing traffic through
+    # CloudFront (WAF, rate limiting, security headers). 30-cloudfront injects
+    # the header; 25-origin-verify owns the secret.
+    ORIGIN_VERIFY_SECRET: '{{resolve:secretsmanager:superstruct-user/${self:provider.stage}/origin-verify}}'
     AUDIT_BUS_NAME: !Ref AuditBus
     AUDIT_TABLE_NAME: ${self:custom.auditTableName}
   iam:

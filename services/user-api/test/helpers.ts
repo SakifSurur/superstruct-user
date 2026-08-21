@@ -10,7 +10,8 @@ export const makeEvent = (
   rawQueryString: '',
   isBase64Encoded: false,
   requestContext: {} as APIGatewayProxyEventV2['requestContext'],
-  headers: {},
+  // CloudFront-injected header expected by withErrorHandling; matches setup.ts.
+  headers: { 'x-origin-verify': 'test-origin-secret' },
   ...overrides,
 });
 

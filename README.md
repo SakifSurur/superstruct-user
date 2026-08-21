@@ -61,6 +61,7 @@ infrastructure/
       11-github-actions-role/ # CI deploy role (trust: this repo's main only)
       20-kms/                 # app CMK (secrets encryption)
       22-jwt-signing-key/     # RS256 keypair for JWTs (private key in Secrets Manager)
+      25-origin-verify/       # shared secret proving requests came via CloudFront
       30-cloudfront/          # CloudFront + WAFv2 edge (us-east-1¹, uses modules/)
       40-amplify/             # Amplify Hosting app (git-connected, builds on push)
       50-monitoring/          # CloudWatch alarms (SNS) + dashboard
@@ -93,6 +94,12 @@ Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
   HTTPS-only (TLS 1.2+); HSTS via the managed `SecurityHeadersPolicy`.
 - **WAF** — AWS managed rule sets (IP reputation, common, known bad inputs)
   plus per-IP rate limiting against scraping/enumeration.
+- **CloudFront-only entry** — the API rejects requests missing the
+  `x-origin-verify` header CloudFront injects (secret from
+  `25-origin-verify`), so the raw execute-api URL can't bypass the WAF. The
+  JWKS API stays directly reachable by design: the API Gateway JWT authorizer
+  fetches the issuer's discovery documents directly (it serves only public
+  keys).
 - **At rest** — DynamoDB server-side encryption + point-in-time recovery;
   handlers never log request bodies.
 - **Detection** — GuardDuty (org-managed; incl. Lambda network logs, S3 data

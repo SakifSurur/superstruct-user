@@ -52,4 +52,21 @@ describe('withErrorHandling', () => {
     });
   });
 
+  it('rejects requests without the origin-verify header', async () => {
+    const handler = withErrorHandling(() => Promise.resolve(json(200, { ok: true })));
+    await expect(invoke(handler, makeEvent({ headers: {} }))).resolves.toEqual({
+      statusCode: 403,
+      body: { message: 'Forbidden' },
+    });
+  });
+
+  it('rejects requests with a wrong origin-verify header', async () => {
+    const handler = withErrorHandling(() => Promise.resolve(json(200, { ok: true })));
+    await expect(
+      invoke(handler, makeEvent({ headers: { 'x-origin-verify': 'wrong-value-here-x' } })),
+    ).resolves.toEqual({
+      statusCode: 403,
+      body: { message: 'Forbidden' },
+    });
+  });
 });

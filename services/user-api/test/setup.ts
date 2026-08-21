@@ -8,3 +8,4 @@ process.env.JWT_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' }
 process.env.JWT_KID = 'test-kid';
 process.env.AUDIT_BUS_NAME = 'audit-bus-test';
 process.env.AUDIT_TABLE_NAME = 'audit-test';
+process.env.ORIGIN_VERIFY_SECRET = 'test-origin-secret';

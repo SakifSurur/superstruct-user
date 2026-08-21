@@ -39,6 +39,12 @@ variable "price_class" {
   default     = "PriceClass_100"
 }
 
+variable "origin_verify_secret_name" {
+  description = "Name of a Secrets Manager secret (in the aws.home region) whose value is sent to the origin as the x-origin-verify header, letting the origin reject requests that bypass CloudFront."
+  type        = string
+  default     = null
+}
+
 variable "rate_limit_per_5min" {
   description = "Per-IP request limit per 5 minutes enforced by the WAF rate rule."
   type        = number

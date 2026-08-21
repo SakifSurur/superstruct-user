@@ -9,7 +9,7 @@ day-2 operations and teardown. Architecture background is in the
 | Piece | Tool | Region |
 | --- | --- | --- |
 | Terraform state bucket | Terragrunt (auto-bootstrap) | eu-central-1 |
-| Security Hub CSPM, account hardening, GitHub OIDC, KMS CMK, JWT signing key | Terragrunt (`infrastructure/environments/dev/00–22`) | eu-central-1 |
+| Security Hub CSPM, account hardening, GitHub OIDC, KMS CMK, JWT signing key, origin-verify secret | Terragrunt (`infrastructure/environments/dev/00–25`) | eu-central-1 |
 | JWKS/issuer API (OIDC discovery + JWKS) | oss-serverless (`services/jwks-api`) | eu-central-1 |
 | API: Lambda, HTTP API, JWT authorizer, DynamoDB, audit pipeline | oss-serverless (`services/user-api`) | eu-central-1 |
 | CloudFront + WAF edge | Terragrunt (`30-cloudfront`) | us-east-1 |
@@ -51,13 +51,14 @@ cd infrastructure/environments/dev
 
 # 1. State bucket + every unit that does not need the API stack yet.
 for unit in 00-security-hub 05-account-baseline 10-github-oidc-provider \
-            11-github-actions-role 20-kms 22-jwt-signing-key; do
+            11-github-actions-role 20-kms 22-jwt-signing-key 25-origin-verify; do
   (cd "$unit" && terragrunt apply --backend-bootstrap)
 done
 
 # 2. The issuer, then the API stack (its JWT authorizer resolves the issuer
-#    URL from SSM; both need 22-jwt-signing-key). CORS falls back to a
-#    localhost origin until the Amplify unit exists.
+#    URL from SSM; both need 22-jwt-signing-key, and the API also resolves
+#    25-origin-verify). CORS falls back to a localhost origin until the
+#    Amplify unit exists.
 cd ../.. && npm run deploy:jwks && npm run deploy:api
 
 # 3. Edge, then Amplify hosting (depends on the edge API URL; needs the
@@ -90,6 +91,11 @@ APP=$(aws ssm get-parameter --name /superstruct-user/dev/frontend/app-url \
 
 curl -s $API/api/v1/stats                          # {"totalUsers":0}
 curl -s -o /dev/null -w '%{http_code}\n' $APP  # 200
+
+# Direct execute-api access must be blocked (CloudFront-only entry):
+RAW=$(aws cloudformation describe-stacks --stack-name superstruct-user-api-dev \
+  --region eu-central-1 --query "Stacks[0].Outputs[?OutputKey=='ApiDomain'].OutputValue" --output text)
+curl -s -o /dev/null -w '%{http_code}\n' https://$RAW/api/v1/stats  # 403
 ```
 
 Register + login through the frontend (`$APP`) or with curl against
@@ -171,8 +177,13 @@ Left behind on purpose, remove manually if wanted:
 - **CLOUDFRONT-scoped WAF web ACLs only exist in us-east-1** — hence
   `30-cloudfront`'s `region.hcl`. Units pin a provider region that way; remote state
   always stays in the home region.
-- **Direct execute-api access is enabled** — the raw API URL works, but it
-  bypasses CloudFront's WAF, rate limiting, and security headers; treat the
-  CloudFront URL as the public entry.
+- **Direct execute-api access to user-api is blocked** — CloudFront injects
+  the `x-origin-verify` header (secret from `25-origin-verify`) and the API
+  returns 403 without it, so WAF, rate limiting, and security headers cannot
+  be bypassed. The **jwks-api stays directly reachable on purpose**: API
+  Gateway's JWT authorizer fetches the issuer's discovery documents directly,
+  not through CloudFront. Rotate by tainting the module's `random_password`,
+  applying `25-origin-verify`, redeploying user-api, then applying
+  `30-cloudfront`.
 - **New URLs on recreate**: CloudFront domains and Amplify URLs are generated;
   destroying and recreating those units changes both public URLs.
