@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import {
-  activity,
-  login,
-  me,
-  register,
-  securityFindings,
-  type ActivityItem,
-  type FindingsSummary,
-  type User,
-} from '../api';
+  QueryClient,
+  QueryClientProvider,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { activity, login, me, register, securityFindings, type ActivityItem } from '../api';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -23,7 +21,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ACTIVITY_LABELS: Record<ActivityItem['type'], string> = {
   'user.registered': 'Account created',
@@ -40,15 +38,11 @@ const SEVERITY_STYLES: Record<string, string> = {
 
 const TOKEN_KEY = 'superstruct-user.token';
 
-export default function AuthPanel() {
+function Panel() {
+  const queryClient = useQueryClient();
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
-  const [profile, setProfile] = useState<User | null>(null);
-  const [posture, setPosture] = useState<FindingsSummary | null>(null);
-  const [events, setEvents] = useState<ActivityItem[]>([]);
   const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -58,48 +52,66 @@ export default function AuthPanel() {
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
-    setProfile(null);
-  }, []);
+    queryClient.removeQueries();
+  }, [queryClient]);
 
+  const meQuery = useQuery({
+    queryKey: ['me', token],
+    queryFn: () => me(token as string),
+    enabled: token !== null,
+  });
+
+  // Expired or invalid token — drop the session.
   useEffect(() => {
-    if (!token) {
-      setPosture(null);
-      setEvents([]);
-      return;
-    }
-    me(token)
-      .then(setProfile)
-      .catch(() => logout()); // expired or invalid token
-    securityFindings(token)
-      .then(setPosture)
-      .catch(() => setPosture(null));
-    activity(token)
-      .then((r) => setEvents(r.items))
-      .catch(() => setEvents([]));
-  }, [token, logout]);
+    if (meQuery.isError) logout();
+  }, [meQuery.isError, logout]);
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    setNotice(null);
-    try {
-      if (mode === 'register') {
-        await register({ email, password, firstName, lastName });
-        setNotice('Account created — log in to continue.');
-        setMode('login');
-      } else {
-        const result = await login({ email, password });
-        localStorage.setItem(TOKEN_KEY, result.token);
-        setToken(result.token);
-      }
+  const postureQuery = useQuery({
+    queryKey: ['security-findings', token],
+    queryFn: () => securityFindings(token as string),
+    enabled: token !== null,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ['activity', token],
+    queryFn: () => activity(token as string),
+    enabled: token !== null,
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: (result) => {
+      localStorage.setItem(TOKEN_KEY, result.token);
+      setToken(result.token);
       setPassword('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Request failed');
-    } finally {
-      setBusy(false);
+    },
+  });
+
+  const registerMutation = useMutation({
+    mutationFn: register,
+    onSuccess: () => {
+      setNotice('Account created — log in to continue.');
+      setMode('login');
+      setPassword('');
+    },
+  });
+
+  const busy = loginMutation.isPending || registerMutation.isPending;
+  const mutationError = mode === 'login' ? loginMutation.error : registerMutation.error;
+
+  const onSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setNotice(null);
+    if (mode === 'register') {
+      registerMutation.mutate({ email, password, firstName, lastName });
+    } else {
+      loginMutation.mutate({ email, password });
     }
   };
+
+  const profile = token !== null ? meQuery.data : undefined;
+  const posture = token !== null ? postureQuery.data : undefined;
+  const events = token !== null ? (activityQuery.data?.items ?? []) : [];
 
   if (profile) {
     return (
@@ -200,7 +212,7 @@ export default function AuthPanel() {
         </Tabs>
       </CardHeader>
       <CardContent>
-        <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
+        <form onSubmit={onSubmit} className="space-y-4">
           {mode === 'register' && (
             <>
               <div className="space-y-2">
@@ -255,12 +267,31 @@ export default function AuthPanel() {
             <AlertDescription>{notice}</AlertDescription>
           </Alert>
         )}
-        {error && (
+        {mutationError && (
           <Alert variant="destructive" className="mt-4">
-            <AlertDescription>{error}</AlertDescription>
+            <AlertDescription>{mutationError.message}</AlertDescription>
           </Alert>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// The island owns its QueryClient — created lazily inside the component so
+// nothing stateful exists at SSR module-evaluation time.
+export default function AuthPanel() {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: { retry: 1, refetchOnWindowFocus: false },
+        },
+      }),
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Panel />
+    </QueryClientProvider>
   );
 }
