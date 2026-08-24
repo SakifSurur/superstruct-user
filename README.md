@@ -83,7 +83,9 @@ browser. Amplify is git-connected and builds the SSR bundle itself on every
 push to `main` — its manual-deployment API does not support SSR compute
 bundles.
 
-Bootstrap order, verification, CI setup, day-2 commands, and teardown live in
+Bootstrap order, verification, CI setup, day-2 commands, teardown, and how to
+retarget another AWS account or add an environment (edit
+`environments/<env>/env.hcl` — everything derives from it) live in
 **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)**. Architecture choices and their
 rationale (e.g. HTTP API over REST) are recorded in
 **[docs/DECISIONS.md](docs/DECISIONS.md)**.

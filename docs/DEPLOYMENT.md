@@ -90,6 +90,39 @@ Notes:
 - If you ran `deploy:api` *before* the KMS units ever existed, run it again
   after step 1 so the secrets switch from the AWS-managed key to the CMK.
 
+## Deploying to a different account or a new environment
+
+All Terragrunt configuration derives from one file:
+`infrastructure/environments/<env>/env.hcl`. The provider, the
+`allowed_account_ids` guard, the state bucket name
+(`<project>-terraform-state-<account_id>`), and every unit input read it — so
+retargeting is an `env.hcl` edit, not a hunt through units.
+
+- **Different account, same layout**: edit `aws_account_id` (and `aws_region`
+  if it moves) in `env.hcl`, export the matching `AWS_PROFILE`, and run the
+  fresh-account bootstrap above. The state bucket name changes with the
+  account id, so a fresh bucket is bootstrapped automatically.
+- **Additional environment** (staging/prod, same or different account): copy
+  `environments/dev/` to `environments/<env>/`, then edit only the new
+  `env.hcl` (`environment`, `aws_account_id`, `aws_region`). State keys mirror
+  the directory path, so the copy starts with clean state — never reuse a
+  directory name across accounts without a state migration.
+
+What `env.hcl` does **not** cover — check these when retargeting:
+
+1. **serverless stacks**: both default to `--region eu-central-1 --stage dev`
+   (`serverless.yml`); pass `--stage <env> --region <region>` on deploy so
+   stack names and the `superstruct-user/<stage>/...` secret/SSM paths line up
+   with the new `env.hcl`.
+2. **CI** (`.github/workflows/deploy.yml`): `DEPLOY_ROLE_ARN` carries the
+   account id and `AWS_REGION` the region; the workflow also hardcodes the
+   `environments/dev` working directory.
+3. **`11-github-actions-role`**: `oidc_subjects` pins this repo's immutable
+   ids — only changes if the repo does.
+4. **New-account one-time setup**: the github-token SSM parameter must be
+   re-created there, and the Amplify GitHub App is per-region
+   (`aws-amplify-<region>`) — a new region means installing that region's app.
+
 ## Verify
 
 ```sh
